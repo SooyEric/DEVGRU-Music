@@ -192,8 +192,9 @@ try {
   );
 }
 
-const queue247 = new Set();
 const nowPlayingMessages = new Map();
+const trackHistory = new Map();
+const navigationActions = new Set();
 
 function formatTime(ms) {
   const milliseconds =
@@ -326,51 +327,52 @@ function createNowPlayingContainer(
       .addActionRowComponents(
         new ActionRowBuilder()
           .addComponents(
+
+            new ButtonBuilder()
+              .setCustomId('back')
+              .setLabel('Back')
+              .setStyle(
+                ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
             new ButtonBuilder()
               .setCustomId(
                 isPaused
                   ? 'resume'
                   : 'pause'
               )
-              .setEmoji(
+              .setLabel(
                 isPaused
-                  ? config.emojis.play
-                  : config.emojis.pause
+                  ? 'Resume'
+                  : 'Pause'
               )
               .setStyle(
-                isPaused
-                  ? ButtonStyle.Success
-                  : ButtonStyle.Primary
+                ButtonStyle.Secondary
               )
               .setDisabled(disabled),
 
             new ButtonBuilder()
               .setCustomId('skip')
-              .setEmoji(
-                config.emojis.skip
-              )
+              .setLabel('Next')
               .setStyle(
-                ButtonStyle.Primary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('stop')
-              .setEmoji(
-                config.emojis.stop
-              )
-              .setStyle(
-                ButtonStyle.Danger
+                ButtonStyle.Secondary
               )
               .setDisabled(disabled),
 
             new ButtonBuilder()
               .setCustomId('queue')
-              .setEmoji(
-                config.emojis.queue
-              )
+              .setLabel('Queue')
               .setStyle(
                 ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
+            new ButtonBuilder()
+              .setCustomId('stop')
+              .setLabel('Stop')
+              .setStyle(
+                ButtonStyle.Danger
               )
               .setDisabled(disabled)
           )
@@ -532,6 +534,39 @@ riffy.on(
 riffy.on(
   'trackStart',
   async (player, track) => {
+    if (!trackHistory.has(player.guildId)) {
+      trackHistory.set(
+        player.guildId,
+        []
+      );
+    }
+
+    const history =
+      trackHistory.get(
+        player.guildId
+      );
+
+    if (
+      player.current &&
+      player.current.info?.uri !==
+        track.info?.uri &&
+      !navigationActions.has(
+        player.guildId
+      )
+    ) {
+      history.push(
+        player.current
+      );
+
+      if (history.length > 20) {
+        history.shift();
+      }
+    }
+
+    navigationActions.delete(
+      player.guildId
+    );
+
     const channel =
       client.channels.cache.get(
         player.textChannel
@@ -548,7 +583,9 @@ riffy.on(
     try {
       const message =
         await channel.send({
-          components: [container],
+          components: [
+            container
+          ],
           flags:
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
@@ -609,30 +646,6 @@ riffy.on(
       );
     }
 
-    if (
-      queue247.has(
-        player.guildId
-      )
-    ) {
-      if (channel) {
-        const container =
-          createSimpleContainerNoButtons(
-            '24/7 Mode',
-            'Queue ended but staying in 24/7 mode',
-            config.emojis.info
-          );
-
-        await channel.send({
-          components: [container],
-          flags:
-            MessageFlags.IsPersistent |
-            MessageFlags.IsComponentsV2
-        });
-      }
-
-      return;
-    }
-
     if (channel) {
       const container =
         createSimpleContainerNoButtons(
@@ -642,12 +655,18 @@ riffy.on(
         );
 
       await channel.send({
-        components: [container],
+        components: [
+          container
+        ],
         flags:
           MessageFlags.IsPersistent |
           MessageFlags.IsComponentsV2
       });
     }
+
+    trackHistory.delete(
+      player.guildId
+    );
 
     player.destroy();
   }
@@ -702,6 +721,67 @@ client.on(
       interaction.customId
     ) {
 
+      case 'back': {
+        const history =
+          trackHistory.get(
+            player.guildId
+          ) || [];
+
+        if (
+          history.length > 0
+        ) {
+          const previousTrack =
+            history.pop();
+
+          if (player.current) {
+            player.queue.unshift(
+              player.current
+            );
+          }
+
+          player.queue.unshift(
+            previousTrack
+          );
+
+          navigationActions.add(
+            player.guildId
+          );
+
+          player.stop();
+
+          return interaction.reply({
+            content: 'Back',
+            flags:
+              MessageFlags.Ephemeral
+          });
+        }
+
+        if (!player.current) {
+          return interaction.reply({
+            content:
+              `${config.emojis.error} Nothing is playing`,
+            flags:
+              MessageFlags.Ephemeral
+          });
+        }
+
+        player.queue.unshift(
+          player.current
+        );
+
+        navigationActions.add(
+          player.guildId
+        );
+
+        player.stop();
+
+        return interaction.reply({
+          content: 'Restarted',
+          flags:
+            MessageFlags.Ephemeral
+        });
+      }
+
       case 'pause':
       case 'resume': {
         const message =
@@ -739,8 +819,8 @@ client.on(
 
         return interaction.reply({
           content: shouldPause
-            ? `${config.emojis.pause} Paused`
-            : `${config.emojis.play} Resumed`,
+            ? 'Paused'
+            : 'Resumed',
           flags:
             MessageFlags.Ephemeral
         });
@@ -777,8 +857,7 @@ client.on(
         player.stop();
 
         return interaction.reply({
-          content:
-            `${config.emojis.skip} Skipped`,
+          content: 'Next',
           flags:
             MessageFlags.Ephemeral
         });
@@ -805,11 +884,18 @@ client.on(
             .catch(() => {});
         }
 
+        trackHistory.delete(
+          player.guildId
+        );
+
+        navigationActions.delete(
+          player.guildId
+        );
+
         player.destroy();
 
         return interaction.reply({
-          content:
-            `${config.emojis.stop} Stopped`,
+          content: 'Stopped',
           flags:
             MessageFlags.Ephemeral
         });
@@ -867,9 +953,10 @@ if (config.enablePrefix) {
           .shift()
           ?.toLowerCase();
 
-      if (!command) return;
-
-      if (command !== 'play') {
+      if (
+        !command ||
+        command !== 'play'
+      ) {
         return;
       }
 
