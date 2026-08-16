@@ -1,7 +1,7 @@
-
 const {
   Client,
   GatewayIntentBits,
+  GatewayDispatchEvents,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -24,6 +24,11 @@ let client;
 let riffy;
 let isLavalinkConnected = false;
 
+
+/* =========================================================
+   EXPRESS
+========================================================= */
+
 function startExpressServer() {
   if (!config.express.enabled) return;
 
@@ -32,11 +37,17 @@ function startExpressServer() {
   app.get('/', (req, res) => {
     res.json({
       status: 'online',
-      bot: client?.user ? client.user.tag : 'Starting...',
+
+      bot: client?.user
+        ? client.user.tag
+        : 'Starting...',
+
       servers: client?.guilds?.cache
         ? client.guilds.cache.size
         : 0,
+
       uptime: process.uptime(),
+
       lavalink: isLavalinkConnected
         ? 'connected'
         : 'disconnected'
@@ -51,7 +62,8 @@ function startExpressServer() {
 
       users: client?.guilds?.cache
         ? client.guilds.cache.reduce(
-            (acc, guild) => acc + guild.memberCount,
+            (acc, guild) =>
+              acc + guild.memberCount,
             0
           )
         : 0,
@@ -71,7 +83,8 @@ function startExpressServer() {
         ? client.ws.ping
         : 0,
 
-      lavalink: isLavalinkConnected
+      lavalink:
+        isLavalinkConnected
     });
   });
 
@@ -86,6 +99,11 @@ function startExpressServer() {
   );
 }
 
+
+/* =========================================================
+   DISCORD CLIENT
+========================================================= */
+
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildVoiceStates,
@@ -98,7 +116,14 @@ if (config.enablePrefix) {
   );
 }
 
-client = new Client({ intents });
+client = new Client({
+  intents
+});
+
+
+/* =========================================================
+   RIFFY / LAVALINK
+========================================================= */
 
 riffy = new Riffy(
   client,
@@ -116,86 +141,71 @@ riffy = new Riffy(
     },
 
     defaultSearchPlatform: 'ytmsearch',
+
     restVersion: 'v4'
   }
 );
 
-try {
-  const {
-    Node
-  } = require(
-    'riffy/build/structures/Node'
-  );
 
-  const originalDefineProperty =
-    Object.defineProperty;
+/* =========================================================
+   RIFFY EVENTS
+========================================================= */
 
-  Object.defineProperty =
-    function (
-      obj,
-      prop,
-      descriptor
-    ) {
-      if (
-        obj instanceof Node &&
-        (
-          prop === 'host' ||
-          prop === 'port' ||
-          prop === 'password' ||
-          prop === 'secure' ||
-          prop === 'identifier'
-        )
-      ) {
-        return originalDefineProperty(
-          obj,
-          prop,
-          {
-            value: descriptor.value,
-            writable: true,
-            enumerable: true,
-            configurable: true
-          }
-        );
-      }
+riffy.on(
+  'nodeConnect',
+  (node) => {
+    console.log(
+      `${config.emojis.success} Node ${node.name} connected`
+    );
 
-      try {
-        return originalDefineProperty(
-          obj,
-          prop,
-          descriptor
-        );
-      } catch (error) {
-        if (
-          error instanceof TypeError &&
-          error.message.includes(
-            'Invalid property descriptor'
-          )
-        ) {
-          return originalDefineProperty(
-            obj,
-            prop,
-            {
-              value: descriptor.value,
-              writable: true,
-              enumerable: true,
-              configurable: true
-            }
-          );
-        }
+    isLavalinkConnected = true;
+  }
+);
 
-        throw error;
-      }
-    };
-} catch (error) {
-  console.log(
-    '⚠️ Riffy Node workaround could not be loaded.'
-  );
-}
+riffy.on(
+  'nodeError',
+  (node, error) => {
+    console.error(
+      `${config.emojis.error} Node ${node.name} error:`,
+      error
+    );
 
-const nowPlayingMessages = new Map();
-const trackHistory = new Map();
-const lastPlayedTracks = new Map();
-const navigationActions = new Set();
+    isLavalinkConnected = false;
+  }
+);
+
+riffy.on(
+  'nodeDisconnect',
+  (node) => {
+    console.log(
+      `${config.emojis.error} Node ${node.name} disconnected`
+    );
+
+    isLavalinkConnected = false;
+  }
+);
+
+
+/* =========================================================
+   PLAYER STATE
+========================================================= */
+
+const nowPlayingMessages =
+  new Map();
+
+const trackHistory =
+  new Map();
+
+const lastPlayedTracks =
+  new Map();
+
+const navigationActions =
+  new Set();
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function formatTime(ms) {
   const milliseconds =
@@ -230,6 +240,7 @@ function formatTime(ms) {
     .toString()
     .padStart(2, '0')}`;
 }
+
 
 function getTrackThumbnail(info) {
   let thumbnail =
@@ -277,6 +288,11 @@ function getTrackThumbnail(info) {
   return thumbnail;
 }
 
+
+/* =========================================================
+   NOW PLAYING CONTAINER
+========================================================= */
+
 function createNowPlayingContainer(
   player,
   track,
@@ -293,8 +309,10 @@ function createNowPlayingContainer(
 
   const container =
     new ContainerBuilder()
+
       .addSectionComponents(
         new SectionBuilder()
+
           .addTextDisplayComponents(
             new TextDisplayBuilder()
               .setContent(
@@ -302,6 +320,7 @@ function createNowPlayingContainer(
                 `**[${info.title || 'Unknown Title'}](${info.uri || 'https://youtube.com'})**`
               )
           )
+
           .setThumbnailAccessory(
             new ThumbnailBuilder()
               .setURL(thumbnail)
@@ -311,6 +330,7 @@ function createNowPlayingContainer(
               )
           )
       )
+
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
@@ -318,6 +338,7 @@ function createNowPlayingContainer(
             `**Requested By:** <@${info.requester || '0'}>`
           )
       )
+
       .addSeparatorComponents(
         new SeparatorBuilder()
           .setSpacing(
@@ -325,52 +346,76 @@ function createNowPlayingContainer(
           )
           .setDivider(true)
       )
+
       .addActionRowComponents(
         new ActionRowBuilder()
           .addComponents(
 
-          new ButtonBuilder()
-            .setCustomId('back')
-            .setEmoji('<:left:1538544846459899955>')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(disabled),
-          
-          new ButtonBuilder()
-            .setCustomId(
-              isPaused
-                ? 'resume'
-                : 'pause'
-            )
-            .setEmoji(
-              isPaused
-                ? '<:play:1538541584167997503>'
-                : '<:pause:1538541612353855489>'
-            )
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(disabled),
-          
-          new ButtonBuilder()
-            .setCustomId('skip')
-            .setEmoji('<:right:1538541644695998545>')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(disabled),
-          
-          new ButtonBuilder()
-            .setCustomId('queue')
-            .setEmoji('<:folder:1538542808648908891>')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(disabled),
-          
-          new ButtonBuilder()
-            .setCustomId('stop')
-            .setEmoji('<:cancel:1538544866659672144>')
-            .setStyle(ButtonStyle.Danger)
-            .setDisabled(disabled)
+            new ButtonBuilder()
+              .setCustomId('back')
+              .setEmoji(
+                '<:left:1538544846459899955>'
+              )
+              .setStyle(
+                ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
+            new ButtonBuilder()
+              .setCustomId(
+                isPaused
+                  ? 'resume'
+                  : 'pause'
+              )
+              .setEmoji(
+                isPaused
+                  ? '<:play:1538541584167997503>'
+                  : '<:pause:1538541612353855489>'
+              )
+              .setStyle(
+                ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
+            new ButtonBuilder()
+              .setCustomId('skip')
+              .setEmoji(
+                '<:right:1538541644695998545>'
+              )
+              .setStyle(
+                ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
+            new ButtonBuilder()
+              .setCustomId('queue')
+              .setEmoji(
+                '<:folder:1538542808648908891>'
+              )
+              .setStyle(
+                ButtonStyle.Secondary
+              )
+              .setDisabled(disabled),
+
+            new ButtonBuilder()
+              .setCustomId('stop')
+              .setEmoji(
+                '<:cancel:1538544866659672144>'
+              )
+              .setStyle(
+                ButtonStyle.Danger
+              )
+              .setDisabled(disabled)
           )
       );
 
   return container;
 }
+
+
+/* =========================================================
+   SIMPLE CONTAINER
+========================================================= */
 
 function createSimpleContainerNoButtons(
   title,
@@ -378,14 +423,17 @@ function createSimpleContainerNoButtons(
   emoji = config.emojis.info
 ) {
   return new ContainerBuilder()
+
     .addSectionComponents(
       new SectionBuilder()
+
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
               `## ${emoji} ${title}\n${description}`
             )
         )
+
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -396,6 +444,7 @@ function createSimpleContainerNoButtons(
             .setDescription(title)
         )
     )
+
     .addSeparatorComponents(
       new SeparatorBuilder()
         .setSpacing(
@@ -404,6 +453,11 @@ function createSimpleContainerNoButtons(
         .setDivider(true)
     );
 }
+
+
+/* =========================================================
+   QUEUE CONTAINER
+========================================================= */
 
 function createQueueContainer(player) {
   const queue =
@@ -448,7 +502,9 @@ function createQueueContainer(player) {
       description +=
         `\n*...and ${queue.length - 10} more track(s)*`;
     }
-  } else if (!current) {
+  }
+
+  else if (!current) {
     description =
       'The queue is currently empty.';
   }
@@ -461,14 +517,17 @@ function createQueueContainer(player) {
     `\n\n**Total:** ${totalTracks} tracks`;
 
   return new ContainerBuilder()
+
     .addSectionComponents(
       new SectionBuilder()
+
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
               `## ${config.emojis.queue} Queue\n${description}`
             )
         )
+
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -479,6 +538,7 @@ function createQueueContainer(player) {
             .setDescription('Queue')
         )
     )
+
     .addSeparatorComponents(
       new SeparatorBuilder()
         .setSpacing(
@@ -488,43 +548,15 @@ function createQueueContainer(player) {
     );
 }
 
-riffy.on(
-  'nodeConnect',
-  (node) => {
-    console.log(
-      `${config.emojis.success} Node ${node.name} connected`
-    );
 
-    isLavalinkConnected = true;
-  }
-);
-
-riffy.on(
-  'nodeError',
-  (node, error) => {
-    console.error(
-      `${config.emojis.error} Node ${node.name} error:`,
-      error
-    );
-
-    isLavalinkConnected = false;
-  }
-);
-
-riffy.on(
-  'nodeDisconnect',
-  (node) => {
-    console.log(
-      `${config.emojis.error} Node ${node.name} disconnected`
-    );
-
-    isLavalinkConnected = false;
-  }
-);
+/* =========================================================
+   TRACK START
+========================================================= */
 
 riffy.on(
   'trackStart',
   async (player, track) => {
+
     const guildId =
       player.guildId;
 
@@ -587,6 +619,7 @@ riffy.on(
           components: [
             container
           ],
+
           flags:
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
@@ -596,6 +629,7 @@ riffy.on(
         guildId,
         message
       );
+
     } catch (error) {
       console.error(
         'Failed to send Now Playing message:',
@@ -605,9 +639,15 @@ riffy.on(
   }
 );
 
+
+/* =========================================================
+   QUEUE END
+========================================================= */
+
 riffy.on(
   'queueEnd',
   async (player) => {
+
     const channel =
       client.channels.cache.get(
         player.textChannel
@@ -618,7 +658,11 @@ riffy.on(
         player.guildId
       );
 
-    if (message && player.current) {
+    if (
+      message &&
+      player.current
+    ) {
+
       try {
         const disabledContainer =
           createNowPlayingContainer(
@@ -631,10 +675,12 @@ riffy.on(
           components: [
             disabledContainer
           ],
+
           flags:
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
         });
+
       } catch (error) {
         console.error(
           'Failed to disable buttons:',
@@ -648,6 +694,7 @@ riffy.on(
     }
 
     if (channel) {
+
       const container =
         createSimpleContainerNoButtons(
           'Queue Ended',
@@ -659,6 +706,7 @@ riffy.on(
         components: [
           container
         ],
+
         flags:
           MessageFlags.IsPersistent |
           MessageFlags.IsComponentsV2
@@ -681,9 +729,15 @@ riffy.on(
   }
 );
 
+
+/* =========================================================
+   BUTTON INTERACTIONS
+========================================================= */
+
 client.on(
   'interactionCreate',
   async (interaction) => {
+
     if (!interaction.isButton()) {
       return;
     }
@@ -697,6 +751,7 @@ client.on(
       return interaction.reply({
         content:
           `${config.emojis.error} No player found`,
+
         flags:
           MessageFlags.Ephemeral
       });
@@ -709,6 +764,7 @@ client.on(
       return interaction.reply({
         content:
           `${config.emojis.error} You need to be in a voice channel`,
+
         flags:
           MessageFlags.Ephemeral
       });
@@ -721,6 +777,7 @@ client.on(
       return interaction.reply({
         content:
           `${config.emojis.error} You need to be in the same voice channel`,
+
         flags:
           MessageFlags.Ephemeral
       });
@@ -731,12 +788,14 @@ client.on(
     ) {
 
       case 'back': {
+
         const history =
           trackHistory.get(
             player.guildId
           ) || [];
 
         if (history.length > 0) {
+
           const previousTrack =
             history.pop();
 
@@ -752,6 +811,7 @@ client.on(
 
           return interaction.reply({
             content: 'Back',
+
             flags:
               MessageFlags.Ephemeral
           });
@@ -761,6 +821,7 @@ client.on(
           return interaction.reply({
             content:
               `${config.emojis.error} Nothing is playing`,
+
             flags:
               MessageFlags.Ephemeral
           });
@@ -778,13 +839,16 @@ client.on(
 
         return interaction.reply({
           content: 'Restarted',
+
           flags:
             MessageFlags.Ephemeral
         });
       }
 
+
       case 'pause':
       case 'resume': {
+
         const message =
           nowPlayingMessages.get(
             player.guildId
@@ -802,6 +866,7 @@ client.on(
           message &&
           player.current
         ) {
+
           const updatedContainer =
             createNowPlayingContainer(
               player,
@@ -812,26 +877,33 @@ client.on(
             components: [
               updatedContainer
             ],
+
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
+
           }).catch(() => {});
         }
 
         return interaction.reply({
-          content: shouldPause
-            ? 'Paused'
-            : 'Resumed',
+          content:
+            shouldPause
+              ? 'Paused'
+              : 'Resumed',
+
           flags:
             MessageFlags.Ephemeral
         });
       }
 
+
       case 'skip': {
+
         if (!player.current) {
           return interaction.reply({
             content:
               `${config.emojis.error} Nothing is playing`,
+
             flags:
               MessageFlags.Ephemeral
           });
@@ -849,6 +921,7 @@ client.on(
             components: [
               disabledContainer
             ],
+
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
@@ -859,13 +932,17 @@ client.on(
 
         return interaction.reply({
           content: 'Next',
+
           flags:
             MessageFlags.Ephemeral
         });
       }
 
+
       case 'stop': {
+
         if (player.current) {
+
           const disabledContainer =
             createNowPlayingContainer(
               player,
@@ -878,6 +955,7 @@ client.on(
               components: [
                 disabledContainer
               ],
+
               flags:
                 MessageFlags.IsPersistent |
                 MessageFlags.IsComponentsV2
@@ -901,12 +979,15 @@ client.on(
 
         return interaction.reply({
           content: 'Stopped',
+
           flags:
             MessageFlags.Ephemeral
         });
       }
 
+
       case 'queue': {
+
         const queueContainer =
           createQueueContainer(
             player
@@ -916,11 +997,13 @@ client.on(
           components: [
             queueContainer
           ],
+
           flags:
             MessageFlags.IsComponentsV2 |
             MessageFlags.Ephemeral
         });
       }
+
 
       default:
         return;
@@ -928,10 +1011,17 @@ client.on(
   }
 );
 
+
+/* =========================================================
+   PREFIX COMMANDS
+========================================================= */
+
 if (config.enablePrefix) {
+
   client.on(
     'messageCreate',
     async (message) => {
+
       if (
         message.author.bot ||
         !message.guild
@@ -942,13 +1032,15 @@ if (config.enablePrefix) {
       const usedPrefix =
         config.prefixes.find(
           prefix =>
-            message.content.startsWith(prefix)
+            message.content.startsWith(
+              prefix
+            )
         );
-      
+
       if (!usedPrefix) {
         return;
       }
-      
+
       const args =
         message.content
           .slice(usedPrefix.length)
@@ -991,14 +1083,17 @@ if (config.enablePrefix) {
       }
 
       try {
+
         let player =
           riffy.players.get(
             message.guild.id
           );
 
         if (!player) {
+
           player =
             riffy.createConnection({
+
               guildId:
                 message.guild.id,
 
@@ -1015,6 +1110,7 @@ if (config.enablePrefix) {
         const resolve =
           await riffy.resolve({
             query,
+
             requester:
               message.author.id
           });
@@ -1029,14 +1125,19 @@ if (config.enablePrefix) {
           );
         }
 
+
+        /* PLAYLIST */
+
         if (
           resolve.loadType ===
           'playlist'
         ) {
+
           for (
             const track
             of resolve.tracks
           ) {
+
             track.info.requester =
               message.author.id;
 
@@ -1048,7 +1149,9 @@ if (config.enablePrefix) {
           const container =
             createSimpleContainerNoButtons(
               'Playlist Added',
+
               `Added playlist **${resolve.playlistInfo?.name || 'Unknown Playlist'}** (${resolve.tracks.length} tracks)`,
+
               config.emojis.success
             );
 
@@ -1056,11 +1159,15 @@ if (config.enablePrefix) {
             components: [
               container
             ],
+
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
           });
         }
+
+
+        /* SINGLE TRACK / SEARCH */
 
         else if (
           resolve.loadType ===
@@ -1068,6 +1175,7 @@ if (config.enablePrefix) {
           resolve.loadType ===
             'track'
         ) {
+
           const track =
             resolve.tracks[0];
 
@@ -1081,7 +1189,9 @@ if (config.enablePrefix) {
           const container =
             createSimpleContainerNoButtons(
               'Added to Queue',
+
               `[${track.info.title}](${track.info.uri})`,
+
               config.emojis.success
             );
 
@@ -1089,17 +1199,21 @@ if (config.enablePrefix) {
             components: [
               container
             ],
+
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
           });
         }
 
+
         else {
+
           return message.reply(
             `${config.emojis.error} No results found`
           );
         }
+
 
         if (
           !player.playing &&
@@ -1109,6 +1223,7 @@ if (config.enablePrefix) {
         }
 
       } catch (error) {
+
         console.error(
           'Play command error:',
           error
@@ -1122,27 +1237,64 @@ if (config.enablePrefix) {
   );
 }
 
+
+/* =========================================================
+   VOICE STATE UPDATE
+========================================================= */
+
+/*
+ * Riffy solo necesita los dos eventos de voz:
+ *
+ * - VOICE_STATE_UPDATE
+ * - VOICE_SERVER_UPDATE
+ *
+ * No enviamos cualquier evento "raw" a Riffy.
+ */
+
 client.on(
   'raw',
   (data) => {
+
+    if (
+      ![
+        GatewayDispatchEvents.VoiceStateUpdate,
+        GatewayDispatchEvents.VoiceServerUpdate
+      ].includes(data.t)
+    ) {
+      return;
+    }
+
     riffy.updateVoiceState(
       data
     );
   }
 );
 
+
+/* =========================================================
+   CLIENT READY
+========================================================= */
+
 client.once(
   'ready',
   async () => {
+
     console.log(
       `${config.emojis.success} Logged in as ${client.user.tag}`
     );
 
     try {
+
       riffy.init(
         client.user.id
       );
+
+      console.log(
+        `${config.emojis.success} Riffy initialized`
+      );
+
     } catch (error) {
+
       console.error(
         `${config.emojis.error} Failed to initialize Riffy:`,
         error
@@ -1154,6 +1306,11 @@ client.once(
     );
   }
 );
+
+
+/* =========================================================
+   START
+========================================================= */
 
 startExpressServer();
 
