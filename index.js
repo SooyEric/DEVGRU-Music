@@ -211,7 +211,6 @@ function formatTime(ms) {
     .padStart(2, '0')}`;
 }
 
-
 function getTrackThumbnail(info) {
   let thumbnail =
     info.artworkUrl ||
@@ -256,6 +255,18 @@ function getTrackThumbnail(info) {
   }
 
   return thumbnail;
+}
+
+function createErrorContainer(
+  description
+) {
+  return new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder()
+        .setContent(
+          `<:info:1538323825542963270> ${description}`
+        )
+    );
 }
 
 function createNowPlayingContainer(
@@ -674,10 +685,14 @@ client.on(
 
     if (!player) {
       return interaction.reply({
-        content:
-          `${config.emojis.error} No se encontró ningún reproductor.`,
+        components: [
+          createErrorContainer(
+            'No se encontró ningún reproductor.'
+          )
+        ],
 
         flags:
+          MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
       });
     }
@@ -687,10 +702,14 @@ client.on(
 
     if (!member.voice?.channel) {
       return interaction.reply({
-        content:
-          `${config.emojis.error} Debes estar en un canal de voz.`,
+        components: [
+          createErrorContainer(
+            'Debes estar en un canal de voz.'
+          )
+        ],
 
         flags:
+          MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
       });
     }
@@ -700,10 +719,14 @@ client.on(
       player.voiceChannel
     ) {
       return interaction.reply({
-        content:
-          `${config.emojis.error} Debes estar en el mismo canal de voz.`,
+        components: [
+          createErrorContainer(
+            'Debes estar en el mismo canal de voz.'
+          )
+        ],
 
         flags:
+          MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
       });
     }
@@ -744,10 +767,14 @@ client.on(
 
         if (!player.current) {
           return interaction.reply({
-            content:
-              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
+            components: [
+              createErrorContainer(
+                'No hay ninguna canción reproduciéndose.'
+              )
+            ],
 
             flags:
+              MessageFlags.IsComponentsV2 |
               MessageFlags.Ephemeral
           });
         }
@@ -826,10 +853,14 @@ client.on(
 
         if (!player.current) {
           return interaction.reply({
-            content:
-              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
+            components: [
+              createErrorContainer(
+                'No hay ninguna canción reproduciéndose.'
+              )
+            ],
 
             flags:
+              MessageFlags.IsComponentsV2 |
               MessageFlags.Ephemeral
           });
         }
@@ -983,23 +1014,44 @@ if (config.enablePrefix) {
         args.join(' ');
 
       if (!query) {
-        return message.reply(
-          `${config.emojis.error} Proporciona el nombre de una canción o una URL.`
-        );
+        return message.reply({
+          components: [
+            createErrorContainer(
+              'Proporciona el nombre de una canción o una URL.'
+            )
+          ],
+
+          flags:
+            MessageFlags.IsComponentsV2
+        });
       }
 
       if (
         !message.member.voice?.channel
       ) {
-        return message.reply(
-          `${config.emojis.error} Debes estar en un canal de voz.`
-        );
+        return message.reply({
+          components: [
+            createErrorContainer(
+              'Debes estar en un canal de voz.'
+            )
+          ],
+
+          flags:
+            MessageFlags.IsComponentsV2
+        });
       }
 
       if (!isLavalinkConnected) {
-        return message.reply(
-          `${config.emojis.error} Lavalink no está conectado. Los comandos de música no están disponibles.`
-        );
+        return message.reply({
+          components: [
+            createErrorContainer(
+              'Lavalink no está conectado. Los comandos de música no están disponibles.'
+            )
+          ],
+
+          flags:
+            MessageFlags.IsComponentsV2
+        });
       }
 
       try {
@@ -1040,9 +1092,16 @@ if (config.enablePrefix) {
           !resolve.tracks ||
           !resolve.tracks.length
         ) {
-          return message.reply(
-            `${config.emojis.error} No se encontraron resultados.`
-          );
+          return message.reply({
+            components: [
+              createErrorContainer(
+                'No se encontraron resultados.'
+              )
+            ],
+
+            flags:
+              MessageFlags.IsComponentsV2
+          });
         }
 
         if (
@@ -1100,14 +1159,14 @@ if (config.enablePrefix) {
             track
           );
 
-           const container =
-        new ContainerBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder()
-              .setContent(
-                `<:thu:1538554141121581126> \`${track.info.title}\` Agregada a la fila de reproducción.`
-              )
-          );
+          const container =
+            new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                  .setContent(
+                    `<:thu:1538554141121581126> \`${track.info.title}\` Agregada a la fila de reproducción.`
+                  )
+              );
 
           await message.reply({
             components: [
@@ -1120,14 +1179,19 @@ if (config.enablePrefix) {
           });
         }
 
-
         else {
 
-          return message.reply(
-            `${config.emojis.error} No se encontraron resultados.`
-          );
-        }
+          return message.reply({
+            components: [
+              createErrorContainer(
+                'No se encontraron resultados.'
+              )
+            ],
 
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        }
 
         if (
           !player.playing &&
@@ -1143,9 +1207,16 @@ if (config.enablePrefix) {
           error
         );
 
-        return message.reply(
-          `${config.emojis.error} Ocurrió un error al reproducir la canción.`
-        );
+        return message.reply({
+          components: [
+            createErrorContainer(
+              'Ocurrió un error al reproducir la canción.'
+            )
+          ],
+
+          flags:
+            MessageFlags.IsComponentsV2
+        });
       }
     }
   );
@@ -1194,6 +1265,7 @@ client.once(
         `${config.emojis.error} Error al inicializar Riffy:`,
         error
       );
+
     }
 
     console.log(
