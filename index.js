@@ -194,6 +194,7 @@ try {
 
 const nowPlayingMessages = new Map();
 const trackHistory = new Map();
+const lastPlayedTracks = new Map();
 const navigationActions = new Set();
 
 function formatTime(ms) {
@@ -534,28 +535,33 @@ riffy.on(
 riffy.on(
   'trackStart',
   async (player, track) => {
-    if (!trackHistory.has(player.guildId)) {
+    const guildId =
+      player.guildId;
+
+    if (!trackHistory.has(guildId)) {
       trackHistory.set(
-        player.guildId,
+        guildId,
         []
       );
     }
 
     const history =
-      trackHistory.get(
-        player.guildId
-      );
+      trackHistory.get(guildId);
+
+    const lastTrack =
+      lastPlayedTracks.get(guildId);
+
+    const isNavigation =
+      navigationActions.has(guildId);
 
     if (
-      player.current &&
-      player.current.info?.uri !==
+      lastTrack &&
+      lastTrack.info?.uri !==
         track.info?.uri &&
-      !navigationActions.has(
-        player.guildId
-      )
+      !isNavigation
     ) {
       history.push(
-        player.current
+        lastTrack
       );
 
       if (history.length > 20) {
@@ -563,8 +569,13 @@ riffy.on(
       }
     }
 
+    lastPlayedTracks.set(
+      guildId,
+      track
+    );
+
     navigationActions.delete(
-      player.guildId
+      guildId
     );
 
     const channel =
@@ -592,7 +603,7 @@ riffy.on(
         });
 
       nowPlayingMessages.set(
-        player.guildId,
+        guildId,
         message
       );
     } catch (error) {
@@ -668,6 +679,14 @@ riffy.on(
       player.guildId
     );
 
+    lastPlayedTracks.delete(
+      player.guildId
+    );
+
+    navigationActions.delete(
+      player.guildId
+    );
+
     player.destroy();
   }
 );
@@ -727,17 +746,9 @@ client.on(
             player.guildId
           ) || [];
 
-        if (
-          history.length > 0
-        ) {
+        if (history.length > 0) {
           const previousTrack =
             history.pop();
-
-          if (player.current) {
-            player.queue.unshift(
-              player.current
-            );
-          }
 
           player.queue.unshift(
             previousTrack
@@ -885,6 +896,10 @@ client.on(
         }
 
         trackHistory.delete(
+          player.guildId
+        );
+
+        lastPlayedTracks.delete(
           player.guildId
         );
 
