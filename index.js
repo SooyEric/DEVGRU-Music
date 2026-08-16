@@ -1,7 +1,6 @@
 const {
   Client,
   GatewayIntentBits,
-  ActivityType,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -939,17 +938,19 @@ if (config.enablePrefix) {
         return;
       }
 
-      if (
-        !message.content.startsWith(
-          config.prefix
-        )
-      ) {
+      const usedPrefix =
+        config.prefixes.find(
+          prefix =>
+            message.content.startsWith(prefix)
+        );
+      
+      if (!usedPrefix) {
         return;
       }
-
+      
       const args =
         message.content
-          .slice(config.prefix.length)
+          .slice(usedPrefix.length)
           .trim()
           .split(/ +/);
 
@@ -1146,42 +1147,6 @@ client.once(
         error
       );
     }
-
-    const activityTypes = {
-      PLAYING:
-        ActivityType.Playing,
-
-      LISTENING:
-        ActivityType.Listening,
-
-      WATCHING:
-        ActivityType.Watching,
-
-      STREAMING:
-        ActivityType.Streaming,
-
-      COMPETING:
-        ActivityType.Competing
-    };
-
-    const activityType =
-      activityTypes[
-        config.activity.type
-      ] ||
-      ActivityType.Listening;
-
-    client.user.setActivity(
-      config.activity.name,
-      {
-        type: activityType
-      }
-    );
-
-    console.log(
-      `${config.emojis.success} Activity set: ` +
-      `${config.activity.type} ` +
-      `${config.activity.name}`
-    );
 
     console.log(
       `${config.emojis.success} Prefix command system ready`
