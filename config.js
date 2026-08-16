@@ -4,8 +4,6 @@ module.exports = {
   prefixes: ['!', '.', '-', '?', ','],
   enablePrefix: true,
 
-  supportServer: 'https://discord.gg/9MVAPpfs8D',
-
   express: {
     enabled: true,
     port: 5000
