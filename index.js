@@ -450,7 +450,7 @@ function createQueueContainer(player) {
     );
 
     description +=
-      `\n${queue.length} canciones en fila de reproducción.`;
+      `\n${queue.length} cancion(es) en fila de reproducción.`;
   }
 
   else if (!current) {
