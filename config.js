@@ -22,9 +22,9 @@ module.exports = {
       {
         name: 'Main Node',
         host: 'lavalinkv4.serenetia.com',
-        port: 443,
+        port: 80,
         password: 'https://seretia.link/discord',
-        secure: true
+        secure: false
       }
     ]
   }
