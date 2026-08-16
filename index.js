@@ -636,11 +636,13 @@ riffy.on(
     if (channel) {
 
       const container =
-        createSimpleContainerNoButtons(
-          'Fila finalizada',
-          'La fila de reproducción ha terminado. Saliendo del canal de voz.',
-          config.emojis.success
-        );
+        new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder()
+              .setContent(
+                '<:info:1538323825542963270> Fila de reproducción finalizada.'
+              )
+          );
 
       await channel.send({
         components: [
@@ -1111,13 +1113,13 @@ if (config.enablePrefix) {
           );
 
           const container =
-            createSimpleContainerNoButtons(
-              'Agregada a la fila',
-
-              `[${track.info.title}](${track.info.uri})`,
-
-              config.emojis.success
-            );
+            new ContainerBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                  .setContent(
+                    `<:thu:1538554141121581126> **[${track.info.title}](${track.info.uri})** Agregada a la fila de reproducción.`
+                  )
+              );
 
           await message.reply({
             components: [
