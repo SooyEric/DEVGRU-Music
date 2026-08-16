@@ -1,7 +1,6 @@
 const {
   Client,
   GatewayIntentBits,
-  ActivityType,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -329,53 +328,43 @@ function createNowPlayingContainer(
         new ActionRowBuilder()
           .addComponents(
 
-            new ButtonBuilder()
-              .setCustomId('back')
-              .setLabel('Back')
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId(
-                isPaused
-                  ? 'resume'
-                  : 'pause'
-              )
-              .setLabel(
-                isPaused
-                  ? 'Resume'
-                  : 'Pause'
-              )
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('skip')
-              .setLabel('Next')
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('queue')
-              .setLabel('Queue')
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('stop')
-              .setLabel('Stop')
-              .setStyle(
-                ButtonStyle.Danger
-              )
-              .setDisabled(disabled)
+          new ButtonBuilder()
+            .setCustomId('back')
+            .setEmoji('<:left:1538541669509636197>')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
+          
+          new ButtonBuilder()
+            .setCustomId(
+              isPaused
+                ? 'resume'
+                : 'pause'
+            )
+            .setEmoji(
+              isPaused
+                ? '<:play:1538541584167997503>'
+                : '<:pause:1538541612353855489>'
+            )
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
+          
+          new ButtonBuilder()
+            .setCustomId('skip')
+            .setEmoji('<:right:1538541644695998545>')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
+          
+          new ButtonBuilder()
+            .setCustomId('queue')
+            .setEmoji('<:folder:1538542808648908891>')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
+          
+          new ButtonBuilder()
+            .setCustomId('stop')
+            .setEmoji('<:cancel:1538542260189139084>')
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(disabled)
           )
       );
 
@@ -949,17 +938,19 @@ if (config.enablePrefix) {
         return;
       }
 
-      if (
-        !message.content.startsWith(
-          config.prefix
-        )
-      ) {
+      const usedPrefix =
+        config.prefixes.find(
+          prefix =>
+            message.content.startsWith(prefix)
+        );
+      
+      if (!usedPrefix) {
         return;
       }
-
+      
       const args =
         message.content
-          .slice(config.prefix.length)
+          .slice(usedPrefix.length)
           .trim()
           .split(/ +/);
 
@@ -1156,42 +1147,6 @@ client.once(
         error
       );
     }
-
-    const activityTypes = {
-      PLAYING:
-        ActivityType.Playing,
-
-      LISTENING:
-        ActivityType.Listening,
-
-      WATCHING:
-        ActivityType.Watching,
-
-      STREAMING:
-        ActivityType.Streaming,
-
-      COMPETING:
-        ActivityType.Competing
-    };
-
-    const activityType =
-      activityTypes[
-        config.activity.type
-      ] ||
-      ActivityType.Listening;
-
-    client.user.setActivity(
-      config.activity.name,
-      {
-        type: activityType
-      }
-    );
-
-    console.log(
-      `${config.emojis.success} Activity set: ` +
-      `${config.activity.type} ` +
-      `${config.activity.name}`
-    );
 
     console.log(
       `${config.emojis.success} Prefix command system ready`
