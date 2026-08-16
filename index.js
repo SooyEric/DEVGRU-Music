@@ -423,7 +423,7 @@ function createQueueContainer(player) {
 
   if (queue.length > 0) {
     description +=
-      `<:folder:1538542808648908891> **Siguiente:**\n`;
+      `<:song:1538552770200600706> **Siguiente:**\n`;
 
     const upcoming =
       queue.slice(0, 10);
