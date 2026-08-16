@@ -425,16 +425,14 @@ function createQueueContainer(player) {
 
   if (current?.info) {
     description +=
-      `**Reproduciendo ahora:**\n` +
-      `**[${current.info.title}](${current.info.uri})**\n` +
-      `${current.info.author || 'Desconocido'} • ` +
-      `${formatTime(current.info.length || 0)} • ` +
+      `<:song:1538552770200600706> **Sonando:** ` +
+      `\`${current.info.title || 'Desconocido'}\` ` +
       `<@${current.info.requester || '0'}>\n\n`;
   }
 
   if (queue.length > 0) {
     description +=
-      '**A continuación:**\n';
+      `<:folder:1538542808648908891> **Siguiente:**\n`;
 
     const upcoming =
       queue.slice(0, 10);
@@ -445,18 +443,14 @@ function createQueueContainer(player) {
           track.info || {};
 
         description +=
-          `\`${index + 1}.\` ` +
-          `**[${info.title || 'Desconocido'}](${info.uri || 'https://youtube.com'})**\n` +
-          `${info.author || 'Desconocido'} • ` +
-          `${formatTime(info.length || 0)} • ` +
+          `**${index + 1}**. ` +
+          `\`${info.title || 'Desconocido'}\` ` +
           `<@${info.requester || '0'}>\n`;
       }
     );
 
-    if (queue.length > 10) {
-      description +=
-        `\n*...y ${queue.length - 10} canción(es) más*`;
-    }
+    description +=
+      `\n${queue.length} canciones en fila de reproducción.`;
   }
 
   else if (!current) {
@@ -468,9 +462,6 @@ function createQueueContainer(player) {
     queue.length +
     (current ? 1 : 0);
 
-  description +=
-    `\n\n**Total:** ${totalTracks} canción(es)`;
-
   return new ContainerBuilder()
 
     .addSectionComponents(
@@ -479,7 +470,11 @@ function createQueueContainer(player) {
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## ${config.emojis.queue} Fila de reproducción\n${description}`
+              `## ${
+                queue.length > 0 || current
+                  ? '<:foldera:1538552555649507409>'
+                  : '<:songa:1538552887494443098>'
+              } Siguiente(s)\n\n${description}`
             )
         )
 
@@ -490,7 +485,7 @@ function createQueueContainer(player) {
                 size: 1024
               })
             )
-            .setDescription('Fila de reproducción')
+            .setDescription('Siguiente(s)')
         )
     )
 
