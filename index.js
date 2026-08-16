@@ -274,6 +274,7 @@ function createNowPlayingContainer(
 
   const container =
     new ContainerBuilder()
+      .setAccentColor(0xffaf1a)
   
       .addSectionComponents(
         new SectionBuilder()
@@ -463,6 +464,7 @@ function createQueueContainer(player) {
     (current ? 1 : 0);
 
   return new ContainerBuilder()
+    .setAccentColor(0xffaf1a)
 
     .addSectionComponents(
       new SectionBuilder()
