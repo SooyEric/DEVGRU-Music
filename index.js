@@ -586,11 +586,6 @@ async function resetPlayer(
     guildId
   );
 
-  const channel =
-    client.channels.cache.get(
-      player.textChannel
-    );
-
   try {
     player.destroy();
   } catch (error) {
@@ -599,6 +594,11 @@ async function resetPlayer(
       error
     );
   }
+
+  const channel =
+    client.channels.cache.get(
+      player.textChannel
+    );
 
   if (channel) {
     try {
