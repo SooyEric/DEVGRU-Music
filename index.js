@@ -180,9 +180,6 @@ const navigationActions =
 const voiceIdleTimers =
   new Map();
 
-const forcedPlayerResets =
-  new Set();
-
 function formatTime(ms) {
   const milliseconds =
     Number(ms) || 0;
@@ -513,121 +510,11 @@ function clearVoiceIdleTimer(guildId) {
   }
 }
 
-async function disableNowPlayingMessage(
-  guildId,
-  player
-) {
-  const message =
-    nowPlayingMessages.get(guildId);
-
-  if (!message || !player.current) {
-    nowPlayingMessages.delete(guildId);
-    return;
-  }
-
-  try {
-    const disabledContainer =
-      createNowPlayingContainer(
-        player,
-        player.current,
-        true
-      );
-
-    await message.edit({
-      components: [
-        disabledContainer
-      ],
-
-      flags:
-        MessageFlags.IsPersistent |
-        MessageFlags.IsComponentsV2
-    });
-  } catch (error) {
-    console.error(
-      'Error al desactivar el mensaje de reproducción:',
-      error
-    );
-  }
-
-  nowPlayingMessages.delete(
-    guildId
-  );
-}
-
-async function resetPlayer(
-  player,
-  message
-) {
-  const guildId =
-    player.guildId;
-
-  clearVoiceIdleTimer(
-    guildId
-  );
-
-  forcedPlayerResets.add(
-    guildId
-  );
-
-  await disableNowPlayingMessage(
-    guildId,
-    player
-  );
-
-  trackHistory.delete(
-    guildId
-  );
-
-  lastPlayedTracks.delete(
-    guildId
-  );
-
-  navigationActions.delete(
-    guildId
-  );
-
-  try {
-    player.destroy();
-  } catch (error) {
-    console.error(
-      'Error al destruir el reproductor:',
-      error
-    );
-  }
-
-  const channel =
-    client.channels.cache.get(
-      player.textChannel
-    );
-
-  if (channel) {
-    try {
-      await channel.send({
-        components: [
-          createErrorContainer(
-            message
-          )
-        ],
-
-        flags:
-          MessageFlags.IsComponentsV2
-      });
-    } catch (error) {
-      console.error(
-        'Error al enviar el mensaje:',
-        error
-      );
-    }
-  }
-}
-
 function startVoiceIdleTimer(player) {
   const guildId =
     player.guildId;
 
-  clearVoiceIdleTimer(
-    guildId
-  );
+  clearVoiceIdleTimer(guildId);
 
   const timer =
     setTimeout(
@@ -660,10 +547,44 @@ function startVoiceIdleTimer(player) {
           return;
         }
 
-        await resetPlayer(
-          player,
-          'Abandoné el canal de voz por inactividad.'
+        const channel =
+          client.channels.cache.get(
+            player.textChannel
+          );
+
+        if (channel) {
+          try {
+            await channel.send({
+              components: [
+                createErrorContainer(
+                  'Abandoné el canal de voz por inactividad.'
+                )
+              ],
+
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          } catch (error) {
+            console.error(
+              'Error al enviar el mensaje de inactividad:',
+              error
+            );
+          }
+        }
+
+        trackHistory.delete(
+          guildId
         );
+
+        lastPlayedTracks.delete(
+          guildId
+        );
+
+        navigationActions.delete(
+          guildId
+        );
+
+        player.destroy();
       },
       30000
     );
@@ -676,19 +597,12 @@ function startVoiceIdleTimer(player) {
 
 client.on(
   'voiceStateUpdate',
-  async (oldState, newState) => {
-    if (
-      !client.user ||
-      newState.id !== client.user.id
-    ) {
-      return;
-    }
-
+  (oldState, newState) => {
     const guild =
       newState.guild ||
       oldState.guild;
 
-    if (!guild) {
+    if (!guild || !client.user) {
       return;
     }
 
@@ -698,43 +612,6 @@ client.on(
       );
 
     if (!player) {
-      return;
-    }
-
-    const wasMoved =
-      oldState.channelId &&
-      newState.channelId &&
-      oldState.channelId !==
-        newState.channelId;
-
-    const wasServerMuted =
-      !oldState.serverMute &&
-      newState.serverMute;
-
-    if (wasServerMuted) {
-      await resetPlayer(
-        player,
-        'Fui silenciado, abandoné el canal de voz.'
-      );
-
-      try {
-        await newState.setMute(false);
-      } catch (error) {
-        console.error(
-          'No se pudo quitar el mute del bot:',
-          error
-        );
-      }
-
-      return;
-    }
-
-    if (wasMoved) {
-      await resetPlayer(
-        player,
-        'Fui movido de canal de voz.'
-      );
-
       return;
     }
 
@@ -872,21 +749,6 @@ riffy.on(
   'queueEnd',
   async (player) => {
 
-    const guildId =
-      player.guildId;
-
-    if (
-      forcedPlayerResets.has(
-        guildId
-      )
-    ) {
-      forcedPlayerResets.delete(
-        guildId
-      );
-
-      return;
-    }
-
     const channel =
       client.channels.cache.get(
         player.textChannel
@@ -894,7 +756,7 @@ riffy.on(
 
     const message =
       nowPlayingMessages.get(
-        guildId
+        player.guildId
       );
 
     if (
@@ -928,7 +790,7 @@ riffy.on(
       }
 
       nowPlayingMessages.delete(
-        guildId
+        player.guildId
       );
     }
 
@@ -955,20 +817,20 @@ riffy.on(
     }
 
     trackHistory.delete(
-      guildId
+      player.guildId
     );
 
     lastPlayedTracks.delete(
-      guildId
+      player.guildId
     );
 
     navigationActions.delete(
-      guildId
+      player.guildId
     );
 
     const guild =
       client.guilds.cache.get(
-        guildId
+        player.guildId
       );
 
     const botMember =
