@@ -300,8 +300,7 @@ function createNowPlayingContainer(
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
-            `**Duración:** ${formatTime(info.length || 0)} • ` +
-            `**Solicitado por:** <@${info.requester || '0'}>`
+            `Duración: ${formatTime(info.length || 0)}`
           )
       )
 
