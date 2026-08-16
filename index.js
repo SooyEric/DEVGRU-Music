@@ -419,17 +419,7 @@ function createQueueContainer(player) {
   const queue =
     player.queue ?? [];
 
-  const current =
-    player.current;
-
   let description = '';
-
-  if (current?.info) {
-    description +=
-      `<:song:1538552770200600706> **Sonando:** ` +
-      `\`${current.info.title || 'Desconocido'}\` ` +
-      `<@${current.info.requester || '0'}>\n\n`;
-  }
 
   if (queue.length > 0) {
     description +=
@@ -454,14 +444,10 @@ function createQueueContainer(player) {
       `\n${queue.length} cancion(es) en fila de reproducción.`;
   }
 
-  else if (!current) {
+  else {
     description =
       'La fila de reproducción está vacía.';
   }
-
-  const totalTracks =
-    queue.length +
-    (current ? 1 : 0);
 
   return new ContainerBuilder()
     .setAccentColor(0xffaf1a)
@@ -473,7 +459,7 @@ function createQueueContainer(player) {
           new TextDisplayBuilder()
             .setContent(
               `## ${
-                queue.length > 0 || current
+                queue.length > 0
                   ? '<:foldera:1538552555649507409>'
                   : '<:songa:1538552887494443098>'
               } Siguiente(s)\n\n${description}`
