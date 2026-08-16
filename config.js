@@ -10,8 +10,6 @@ module.exports = {
   },
 
   emojis: {
-    music: '🎵',
-    queue: '📜',
     success: '✅',
     error: '❌',
     info: 'ℹ️'
