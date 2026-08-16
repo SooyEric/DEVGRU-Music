@@ -597,7 +597,7 @@ function startVoiceIdleTimer(player) {
 
 client.on(
   'voiceStateUpdate',
-  (oldState, newState) => {
+  async (oldState, newState) => {
     const guild =
       newState.guild ||
       oldState.guild;
@@ -612,6 +612,65 @@ client.on(
       );
 
     if (!player) {
+      return;
+    }
+
+    if (
+      newState.id === client.user.id &&
+      (newState.serverMute || newState.selfMute)
+    ) {
+      try {
+        await guild.members.me.voice.setMute(false);
+      } catch (error) {
+        console.error(
+          'Error al desmutear el bot:',
+          error
+        );
+      }
+
+      const channel =
+        client.channels.cache.get(
+          player.textChannel
+        );
+
+      if (channel) {
+        try {
+          await channel.send({
+            components: [
+              createErrorContainer(
+                'Fui muteado en el canal de voz y abandoné el canal.'
+              )
+            ],
+
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        } catch (error) {
+          console.error(
+            'Error al enviar el mensaje de mute:',
+            error
+          );
+        }
+      }
+
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      trackHistory.delete(
+        guild.id
+      );
+
+      lastPlayedTracks.delete(
+        guild.id
+      );
+
+      navigationActions.delete(
+        guild.id
+      );
+
+      player.destroy();
+
       return;
     }
 
