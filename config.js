@@ -1,14 +1,8 @@
-// config.js
 module.exports = {
   token: process.env.DISCORD_TOKEN,
-  prefix: "!",
-  enablePrefix: true,
-  supportServer: "https://discord.gg/9MVAPpfs8D",
 
-  activity: {
-    name: "/help",
-    type: "LISTENING" // PLAYING, LISTENING, WATCHING, STREAMING, COMPETING
-  },
+  prefixes: ['!', '.', '-', '?'],
+  enablePrefix: true,
 
   express: {
     enabled: true,
@@ -16,49 +10,20 @@ module.exports = {
   },
 
   emojis: {
-    play: "▶️",
-    pause: "⏸️",
-    stop: "⏹️",
-    skip: "⏭️",
-    queue: "📜",
-    music: "🎵",
-    loop: "🔁",
-    shuffle: "🔀",
-    volume: "🔊",
-    success: "✅",
-    error: "❌",
-    info: "ℹ️"
-  },
-
-  aliases: {
-    play: ['p'],
-    pause: ['pa'],
-    resume: ['r', 'res'],
-    skip: ['s', 'next'],
-    stop: ['st', 'leave', 'disconnect'],
-    volume: ['v', 'vol'],
-    queue: ['q'],
-    nowplaying: ['np', 'current'],
-    shuffle: ['sh', 'mix'],
-    loop: ['l', 'repeat'],
-    remove: ['rm', 'delete'],
-    move: ['mv'],
-    clearqueue: ['cq', 'clear'],
-    '247': ['24/7', 'stay'],
-    stats: ['status', 'info'],
-    ping: ['latency'],
-    invite: ['inv'],
-    support: ['server'],
-    help: ['h', 'commands', 'cmd']
+    music: '🎵',
+    queue: '📜',
+    success: '✅',
+    error: '❌',
+    info: 'ℹ️'
   },
 
   lavalink: {
     nodes: [
       {
-        name: "Main Node",
-        host: "lavalinkv4.serenetia.com",
+        name: 'Main Node',
+        host: 'lavalinkv4.serenetia.com',
         port: 80,
-        password: "https://seretia.link/discord",
+        password: 'https://seretia.link/discord',
         secure: false
       }
     ]
