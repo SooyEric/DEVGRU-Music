@@ -280,10 +280,11 @@ function createNowPlayingContainer(
 
           .addTextDisplayComponents(
             new TextDisplayBuilder()
-              .setContent(
-                `## ${config.emojis.music} Reproduciendo ahora\n` +
-                `**[${info.title || 'Título desconocido'}](${info.uri || 'https://youtube.com'})**`
-              )
+            .setContent(
+              `## <:songa:1538552887494443098> Reproduciendo\n` +
+              `\`${info.title || 'Título desconocido'}\`\n\n` +
+              `Solicitada por <@${info.requester || '0'}>`
+            )
           )
 
           .setThumbnailAccessory(
