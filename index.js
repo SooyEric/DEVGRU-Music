@@ -961,7 +961,7 @@ if (config.enablePrefix) {
 
       if (
         !command ||
-        command !== 'play'
+        !['play', 'p'].includes(command)
       ) {
         return;
       }
