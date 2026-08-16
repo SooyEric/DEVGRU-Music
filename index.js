@@ -331,7 +331,7 @@ function createNowPlayingContainer(
 
           new ButtonBuilder()
             .setCustomId('back')
-            .setEmoji('<:left:1538541669509636197>')
+            .setEmoji('<:left:1538544846459899955>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(disabled),
           
@@ -363,7 +363,7 @@ function createNowPlayingContainer(
           
           new ButtonBuilder()
             .setCustomId('stop')
-            .setEmoji('<:cancel:1538542260189139084>')
+            .setEmoji('<:cancel:1538544866659672144>')
             .setStyle(ButtonStyle.Danger)
             .setDisabled(disabled)
           )
