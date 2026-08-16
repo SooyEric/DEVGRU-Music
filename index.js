@@ -177,6 +177,9 @@ const lastPlayedTracks =
 const navigationActions =
   new Set();
 
+const voiceIdleTimers =
+  new Map();
+
 function formatTime(ms) {
   const milliseconds =
     Number(ms) || 0;
@@ -286,10 +289,10 @@ function createNowPlayingContainer(
   const container =
     new ContainerBuilder()
       .setAccentColor(0xffaf1a)
-  
+
       .addSectionComponents(
         new SectionBuilder()
-  
+
           .addTextDisplayComponents(
             new TextDisplayBuilder()
               .setContent(
@@ -297,7 +300,7 @@ function createNowPlayingContainer(
                 `\`${info.title || 'Título desconocido'}\``
               )
           )
-  
+
           .setThumbnailAccessory(
             new ThumbnailBuilder()
               .setURL(thumbnail)
@@ -307,7 +310,7 @@ function createNowPlayingContainer(
               )
           )
       )
-  
+
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
@@ -497,9 +500,168 @@ function createQueueContainer(player) {
     );
 }
 
+function clearVoiceIdleTimer(guildId) {
+  const timer =
+    voiceIdleTimers.get(guildId);
+
+  if (timer) {
+    clearTimeout(timer);
+    voiceIdleTimers.delete(guildId);
+  }
+}
+
+function startVoiceIdleTimer(player) {
+  const guildId =
+    player.guildId;
+
+  clearVoiceIdleTimer(guildId);
+
+  const timer =
+    setTimeout(
+      async () => {
+        voiceIdleTimers.delete(
+          guildId
+        );
+
+        const guild =
+          client.guilds.cache.get(
+            guildId
+          );
+
+        if (!guild) return;
+
+        const voiceChannel =
+          guild.channels.cache.get(
+            player.voiceChannel
+          );
+
+        if (!voiceChannel) return;
+
+        const hasUsers =
+          voiceChannel.members.some(
+            member =>
+              !member.user.bot
+          );
+
+        if (hasUsers) {
+          return;
+        }
+
+        const channel =
+          client.channels.cache.get(
+            player.textChannel
+          );
+
+        if (channel) {
+          try {
+            await channel.send({
+              components: [
+                createErrorContainer(
+                  'Abandoné el canal de voz por inactividad.'
+                )
+              ],
+
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          } catch (error) {
+            console.error(
+              'Error al enviar el mensaje de inactividad:',
+              error
+            );
+          }
+        }
+
+        trackHistory.delete(
+          guildId
+        );
+
+        lastPlayedTracks.delete(
+          guildId
+        );
+
+        navigationActions.delete(
+          guildId
+        );
+
+        player.destroy();
+      },
+      30000
+    );
+
+  voiceIdleTimers.set(
+    guildId,
+    timer
+  );
+}
+
+client.on(
+  'voiceStateUpdate',
+  (oldState, newState) => {
+    const guild =
+      newState.guild ||
+      oldState.guild;
+
+    if (!guild || !client.user) {
+      return;
+    }
+
+    const player =
+      riffy.players.get(
+        guild.id
+      );
+
+    if (!player) {
+      return;
+    }
+
+    const botMember =
+      guild.members.me;
+
+    if (!botMember?.voice?.channel) {
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      return;
+    }
+
+    const botChannel =
+      botMember.voice.channel;
+
+    const hasUsers =
+      botChannel.members.some(
+        member =>
+          !member.user.bot
+      );
+
+    if (hasUsers) {
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      return;
+    }
+
+    if (
+      !voiceIdleTimers.has(
+        guild.id
+      )
+    ) {
+      startVoiceIdleTimer(
+        player
+      );
+    }
+  }
+);
+
 riffy.on(
   'trackStart',
   async (player, track) => {
+
+    clearVoiceIdleTimer(
+      player.guildId
+    );
 
     const guildId =
       player.guildId;
@@ -666,7 +828,29 @@ riffy.on(
       player.guildId
     );
 
-    player.destroy();
+    const guild =
+      client.guilds.cache.get(
+        player.guildId
+      );
+
+    const botMember =
+      guild?.members.me;
+
+    if (
+      botMember?.voice?.channel
+    ) {
+      const hasUsers =
+        botMember.voice.channel.members.some(
+          member =>
+            !member.user.bot
+        );
+
+      if (!hasUsers) {
+        startVoiceIdleTimer(
+          player
+        );
+      }
+    }
   }
 );
 
@@ -797,7 +981,6 @@ client.on(
         });
       }
 
-
       case 'pause':
       case 'resume': {
 
@@ -848,7 +1031,6 @@ client.on(
         });
       }
 
-
       case 'skip': {
 
         if (!player.current) {
@@ -894,8 +1076,11 @@ client.on(
         });
       }
 
-
       case 'stop': {
+
+        clearVoiceIdleTimer(
+          player.guildId
+        );
 
         if (player.current) {
 
@@ -941,7 +1126,6 @@ client.on(
         });
       }
 
-
       case 'queue': {
 
         const queueContainer =
@@ -959,7 +1143,6 @@ client.on(
             MessageFlags.Ephemeral
         });
       }
-
 
       default:
         return;
