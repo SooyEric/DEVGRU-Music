@@ -24,10 +24,7 @@ let client;
 let riffy;
 let isLavalinkConnected = false;
 
-
-/* =========================================================
-   EXPRESS
-========================================================= */
+const EMBED_COLOR = 0xffaf1a;
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -37,17 +34,13 @@ function startExpressServer() {
   app.get('/', (req, res) => {
     res.json({
       status: 'online',
-
       bot: client?.user
         ? client.user.tag
         : 'Starting...',
-
       servers: client?.guilds?.cache
         ? client.guilds.cache.size
         : 0,
-
       uptime: process.uptime(),
-
       lavalink: isLavalinkConnected
         ? 'connected'
         : 'disconnected'
@@ -93,16 +86,11 @@ function startExpressServer() {
     '0.0.0.0',
     () => {
       console.log(
-        `🌐 Express server running on port ${config.express.port}`
+        `🌐 Servidor Express ejecutándose en el puerto ${config.express.port}`
       );
     }
   );
 }
-
-
-/* =========================================================
-   DISCORD CLIENT
-========================================================= */
 
 const intents = [
   GatewayIntentBits.Guilds,
@@ -120,11 +108,6 @@ client = new Client({
   intents
 });
 
-
-/* =========================================================
-   RIFFY / LAVALINK
-========================================================= */
-
 riffy = new Riffy(
   client,
   config.lavalink.nodes,
@@ -141,21 +124,15 @@ riffy = new Riffy(
     },
 
     defaultSearchPlatform: 'ytmsearch',
-
     restVersion: 'v4'
   }
 );
-
-
-/* =========================================================
-   RIFFY EVENTS
-========================================================= */
 
 riffy.on(
   'nodeConnect',
   (node) => {
     console.log(
-      `${config.emojis.success} Node ${node.name} connected`
+      `${config.emojis.success} Nodo ${node.name} conectado`
     );
 
     isLavalinkConnected = true;
@@ -166,7 +143,7 @@ riffy.on(
   'nodeError',
   (node, error) => {
     console.error(
-      `${config.emojis.error} Node ${node.name} error:`,
+      `${config.emojis.error} Error en el nodo ${node.name}:`,
       error
     );
 
@@ -178,17 +155,12 @@ riffy.on(
   'nodeDisconnect',
   (node) => {
     console.log(
-      `${config.emojis.error} Node ${node.name} disconnected`
+      `${config.emojis.error} Nodo ${node.name} desconectado`
     );
 
     isLavalinkConnected = false;
   }
 );
-
-
-/* =========================================================
-   PLAYER STATE
-========================================================= */
 
 const nowPlayingMessages =
   new Map();
@@ -201,11 +173,6 @@ const lastPlayedTracks =
 
 const navigationActions =
   new Set();
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function formatTime(ms) {
   const milliseconds =
@@ -240,7 +207,6 @@ function formatTime(ms) {
     .toString()
     .padStart(2, '0')}`;
 }
-
 
 function getTrackThumbnail(info) {
   let thumbnail =
@@ -288,11 +254,6 @@ function getTrackThumbnail(info) {
   return thumbnail;
 }
 
-
-/* =========================================================
-   NOW PLAYING CONTAINER
-========================================================= */
-
 function createNowPlayingContainer(
   player,
   track,
@@ -309,24 +270,23 @@ function createNowPlayingContainer(
 
   const container =
     new ContainerBuilder()
+      .setAccentColor(EMBED_COLOR)
 
       .addSectionComponents(
         new SectionBuilder()
-
           .addTextDisplayComponents(
             new TextDisplayBuilder()
               .setContent(
-                `## ${config.emojis.music} Now Playing\n` +
-                `**[${info.title || 'Unknown Title'}](${info.uri || 'https://youtube.com'})**`
+                `## ${config.emojis.music} Reproduciendo ahora\n` +
+                `**[${info.title || 'Canción desconocida'}](${info.uri || 'https://youtube.com'})**`
               )
           )
-
           .setThumbnailAccessory(
             new ThumbnailBuilder()
               .setURL(thumbnail)
               .setDescription(
                 info.title ||
-                'Song Thumbnail'
+                'Miniatura de la canción'
               )
           )
       )
@@ -334,8 +294,8 @@ function createNowPlayingContainer(
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
-            `**Duration:** ${formatTime(info.length || 0)} • ` +
-            `**Requested By:** <@${info.requester || '0'}>`
+            `**Duración:** ${formatTime(info.length || 0)} • ` +
+            `**Solicitada por:** <@${info.requester || '0'}>`
           )
       )
 
@@ -412,28 +372,22 @@ function createNowPlayingContainer(
   return container;
 }
 
-
-/* =========================================================
-   SIMPLE CONTAINER
-========================================================= */
-
 function createSimpleContainerNoButtons(
   title,
   description,
   emoji = config.emojis.info
 ) {
   return new ContainerBuilder()
+    .setAccentColor(EMBED_COLOR)
 
     .addSectionComponents(
       new SectionBuilder()
-
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
               `## ${emoji} ${title}\n${description}`
             )
         )
-
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -454,11 +408,6 @@ function createSimpleContainerNoButtons(
     );
 }
 
-
-/* =========================================================
-   QUEUE CONTAINER
-========================================================= */
-
 function createQueueContainer(player) {
   const queue =
     player.queue ?? [];
@@ -470,16 +419,14 @@ function createQueueContainer(player) {
 
   if (current?.info) {
     description +=
-      `**Now Playing:**\n` +
-      `**[${current.info.title}](${current.info.uri})**\n` +
-      `${current.info.author || 'Unknown'} • ` +
-      `${formatTime(current.info.length || 0)} • ` +
+      `<:song:1538552770200600706> **Sonando:** ` +
+      `**[${current.info.title || 'Canción desconocida'}](${current.info.uri || 'https://youtube.com'})** ` +
       `<@${current.info.requester || '0'}>\n\n`;
   }
 
   if (queue.length > 0) {
     description +=
-      '**Up Next:**\n';
+      `<:folder:1538542808648908891> **Siguiente:**\n`;
 
     const upcoming =
       queue.slice(0, 10);
@@ -490,44 +437,37 @@ function createQueueContainer(player) {
           track.info || {};
 
         description +=
-          `\`${index + 1}.\` ` +
-          `**[${info.title || 'Unknown'}](${info.uri || 'https://youtube.com'})**\n` +
-          `${info.author || 'Unknown'} • ` +
-          `${formatTime(info.length || 0)} • ` +
+          `**${index + 1}**. ` +
+          `**[${info.title || 'Canción desconocida'}](${info.uri || 'https://youtube.com'})** ` +
           `<@${info.requester || '0'}>\n`;
       }
     );
 
     if (queue.length > 10) {
       description +=
-        `\n*...and ${queue.length - 10} more track(s)*`;
+        `\n*...y ${queue.length - 10} canción(es) más.*`;
     }
-  }
 
-  else if (!current) {
+    description +=
+      `\n${queue.length} ` +
+      `${queue.length === 1 ? 'canción' : 'canciones'} ` +
+      `en fila de reproducción.`;
+  } else if (!current) {
     description =
-      'The queue is currently empty.';
+      'La fila de reproducción está vacía.';
   }
-
-  const totalTracks =
-    queue.length +
-    (current ? 1 : 0);
-
-  description +=
-    `\n\n**Total:** ${totalTracks} tracks`;
 
   return new ContainerBuilder()
+    .setAccentColor(EMBED_COLOR)
 
     .addSectionComponents(
       new SectionBuilder()
-
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## ${config.emojis.queue} Queue\n${description}`
+              `## <:foldera:1538552555649507409> Siguiente(s)\n\n${description}`
             )
         )
-
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -535,7 +475,7 @@ function createQueueContainer(player) {
                 size: 1024
               })
             )
-            .setDescription('Queue')
+            .setDescription('Fila de reproducción')
         )
     )
 
@@ -548,15 +488,9 @@ function createQueueContainer(player) {
     );
 }
 
-
-/* =========================================================
-   TRACK START
-========================================================= */
-
 riffy.on(
   'trackStart',
   async (player, track) => {
-
     const guildId =
       player.guildId;
 
@@ -629,25 +563,18 @@ riffy.on(
         guildId,
         message
       );
-
     } catch (error) {
       console.error(
-        'Failed to send Now Playing message:',
+        'Error al enviar el mensaje de reproducción:',
         error
       );
     }
   }
 );
 
-
-/* =========================================================
-   QUEUE END
-========================================================= */
-
 riffy.on(
   'queueEnd',
   async (player) => {
-
     const channel =
       client.channels.cache.get(
         player.textChannel
@@ -662,7 +589,6 @@ riffy.on(
       message &&
       player.current
     ) {
-
       try {
         const disabledContainer =
           createNowPlayingContainer(
@@ -680,10 +606,9 @@ riffy.on(
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
         });
-
       } catch (error) {
         console.error(
-          'Failed to disable buttons:',
+          'Error al desactivar los botones:',
           error
         );
       }
@@ -694,12 +619,11 @@ riffy.on(
     }
 
     if (channel) {
-
       const container =
         createSimpleContainerNoButtons(
-          'Queue Ended',
-          'Queue ended, leaving voice channel',
-          config.emojis.success
+          'Fila de reproducción finalizada',
+          'La fila de reproducción ha finalizado.',
+          config.emojis.info
         );
 
       await channel.send({
@@ -729,15 +653,9 @@ riffy.on(
   }
 );
 
-
-/* =========================================================
-   BUTTON INTERACTIONS
-========================================================= */
-
 client.on(
   'interactionCreate',
   async (interaction) => {
-
     if (!interaction.isButton()) {
       return;
     }
@@ -750,7 +668,7 @@ client.on(
     if (!player) {
       return interaction.reply({
         content:
-          `${config.emojis.error} No player found`,
+          `${config.emojis.error} No hay ningún reproductor activo.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -763,7 +681,7 @@ client.on(
     if (!member.voice?.channel) {
       return interaction.reply({
         content:
-          `${config.emojis.error} You need to be in a voice channel`,
+          `${config.emojis.error} Debes estar en un canal de voz.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -776,7 +694,7 @@ client.on(
     ) {
       return interaction.reply({
         content:
-          `${config.emojis.error} You need to be in the same voice channel`,
+          `${config.emojis.error} Debes estar en el mismo canal de voz que el bot.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -788,14 +706,12 @@ client.on(
     ) {
 
       case 'back': {
-
         const history =
           trackHistory.get(
             player.guildId
           ) || [];
 
         if (history.length > 0) {
-
           const previousTrack =
             history.pop();
 
@@ -810,7 +726,8 @@ client.on(
           player.stop();
 
           return interaction.reply({
-            content: 'Back',
+            content:
+              'Canción anterior',
 
             flags:
               MessageFlags.Ephemeral
@@ -820,7 +737,7 @@ client.on(
         if (!player.current) {
           return interaction.reply({
             content:
-              `${config.emojis.error} Nothing is playing`,
+              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
 
             flags:
               MessageFlags.Ephemeral
@@ -838,17 +755,16 @@ client.on(
         player.stop();
 
         return interaction.reply({
-          content: 'Restarted',
+          content:
+            'Reiniciando canción',
 
           flags:
             MessageFlags.Ephemeral
         });
       }
 
-
       case 'pause':
       case 'resume': {
-
         const message =
           nowPlayingMessages.get(
             player.guildId
@@ -866,7 +782,6 @@ client.on(
           message &&
           player.current
         ) {
-
           const updatedContainer =
             createNowPlayingContainer(
               player,
@@ -881,28 +796,25 @@ client.on(
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
-
           }).catch(() => {});
         }
 
         return interaction.reply({
           content:
             shouldPause
-              ? 'Paused'
-              : 'Resumed',
+              ? 'Reproducción pausada.'
+              : 'Reproducción reanudada.',
 
           flags:
             MessageFlags.Ephemeral
         });
       }
 
-
       case 'skip': {
-
         if (!player.current) {
           return interaction.reply({
             content:
-              `${config.emojis.error} Nothing is playing`,
+              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
 
             flags:
               MessageFlags.Ephemeral
@@ -931,18 +843,16 @@ client.on(
         player.stop();
 
         return interaction.reply({
-          content: 'Next',
+          content:
+            'Siguiente canción.',
 
           flags:
             MessageFlags.Ephemeral
         });
       }
 
-
       case 'stop': {
-
         if (player.current) {
-
           const disabledContainer =
             createNowPlayingContainer(
               player,
@@ -978,16 +888,15 @@ client.on(
         player.destroy();
 
         return interaction.reply({
-          content: 'Stopped',
+          content:
+            'Reproducción detenida.',
 
           flags:
             MessageFlags.Ephemeral
         });
       }
 
-
       case 'queue': {
-
         const queueContainer =
           createQueueContainer(
             player
@@ -1004,24 +913,16 @@ client.on(
         });
       }
 
-
       default:
         return;
     }
   }
 );
 
-
-/* =========================================================
-   PREFIX COMMANDS
-========================================================= */
-
 if (config.enablePrefix) {
-
   client.on(
     'messageCreate',
     async (message) => {
-
       if (
         message.author.bot ||
         !message.guild
@@ -1064,7 +965,7 @@ if (config.enablePrefix) {
 
       if (!query) {
         return message.reply(
-          `${config.emojis.error} Please provide a song name or URL`
+          `${config.emojis.error} Proporciona el nombre o URL de una canción.`
         );
       }
 
@@ -1072,28 +973,25 @@ if (config.enablePrefix) {
         !message.member.voice?.channel
       ) {
         return message.reply(
-          `${config.emojis.error} You need to be in a voice channel`
+          `${config.emojis.error} Debes estar en un canal de voz.`
         );
       }
 
       if (!isLavalinkConnected) {
         return message.reply(
-          `${config.emojis.error} Lavalink is not connected. Music commands are unavailable.`
+          `${config.emojis.error} Lavalink no está conectado. Los comandos de música no están disponibles.`
         );
       }
 
       try {
-
         let player =
           riffy.players.get(
             message.guild.id
           );
 
         if (!player) {
-
           player =
             riffy.createConnection({
-
               guildId:
                 message.guild.id,
 
@@ -1121,23 +1019,18 @@ if (config.enablePrefix) {
           !resolve.tracks.length
         ) {
           return message.reply(
-            `${config.emojis.error} No results found`
+            `${config.emojis.error} No se encontraron resultados.`
           );
         }
-
-
-        /* PLAYLIST */
 
         if (
           resolve.loadType ===
           'playlist'
         ) {
-
           for (
             const track
             of resolve.tracks
           ) {
-
             track.info.requester =
               message.author.id;
 
@@ -1148,10 +1041,8 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Playlist Added',
-
-              `Added playlist **${resolve.playlistInfo?.name || 'Unknown Playlist'}** (${resolve.tracks.length} tracks)`,
-
+              'Lista agregada',
+              `La lista **${resolve.playlistInfo?.name || 'Lista desconocida'}** ha sido agregada a la fila de reproducción con **${resolve.tracks.length} canciones**.`,
               config.emojis.success
             );
 
@@ -1166,16 +1057,12 @@ if (config.enablePrefix) {
           });
         }
 
-
-        /* SINGLE TRACK / SEARCH */
-
         else if (
           resolve.loadType ===
             'search' ||
           resolve.loadType ===
             'track'
         ) {
-
           const track =
             resolve.tracks[0];
 
@@ -1188,10 +1075,8 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Added to Queue',
-
-              `[${track.info.title}](${track.info.uri})`,
-
+              'Canción agregada',
+              `<:thu:1538554141121581126> **[${track.info.title}](${track.info.uri})** agregada a la fila de reproducción.`,
               config.emojis.success
             );
 
@@ -1206,14 +1091,11 @@ if (config.enablePrefix) {
           });
         }
 
-
         else {
-
           return message.reply(
-            `${config.emojis.error} No results found`
+            `${config.emojis.error} No se encontraron resultados.`
           );
         }
-
 
         if (
           !player.playing &&
@@ -1223,38 +1105,22 @@ if (config.enablePrefix) {
         }
 
       } catch (error) {
-
         console.error(
-          'Play command error:',
+          'Error en el comando de reproducción:',
           error
         );
 
         return message.reply(
-          `${config.emojis.error} An error occurred while playing the song`
+          `${config.emojis.error} Ocurrió un error al intentar reproducir la canción.`
         );
       }
     }
   );
 }
 
-
-/* =========================================================
-   VOICE STATE UPDATE
-========================================================= */
-
-/*
- * Riffy solo necesita los dos eventos de voz:
- *
- * - VOICE_STATE_UPDATE
- * - VOICE_SERVER_UPDATE
- *
- * No enviamos cualquier evento "raw" a Riffy.
- */
-
 client.on(
   'raw',
   (data) => {
-
     if (
       ![
         GatewayDispatchEvents.VoiceStateUpdate,
@@ -1270,47 +1136,34 @@ client.on(
   }
 );
 
-
-/* =========================================================
-   CLIENT READY
-========================================================= */
-
 client.once(
   'ready',
   async () => {
-
     console.log(
-      `${config.emojis.success} Logged in as ${client.user.tag}`
+      `${config.emojis.success} Sesión iniciada como ${client.user.tag}`
     );
 
     try {
-
       riffy.init(
         client.user.id
       );
 
       console.log(
-        `${config.emojis.success} Riffy initialized`
+        `${config.emojis.success} Riffy inicializado`
       );
 
     } catch (error) {
-
       console.error(
-        `${config.emojis.error} Failed to initialize Riffy:`,
+        `${config.emojis.error} Error al inicializar Riffy:`,
         error
       );
     }
 
     console.log(
-      `${config.emojis.success} Prefix command system ready`
+      `${config.emojis.success} Sistema de comandos por prefijo listo`
     );
   }
 );
-
-
-/* =========================================================
-   START
-========================================================= */
 
 startExpressServer();
 
