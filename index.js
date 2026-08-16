@@ -1,5 +1,3 @@
-este es mi index haz las modificaciones aqui:
-
 const {
   Client,
   GatewayIntentBits,
