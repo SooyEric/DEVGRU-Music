@@ -41,7 +41,7 @@ function startExpressServer() {
 
       bot: client?.user
         ? client.user.tag
-        : 'Iniciando...',
+        : 'Starting...',
 
       servers: client?.guilds?.cache
         ? client.guilds.cache.size
@@ -464,14 +464,16 @@ function createQueueContainer(player) {
 
   if (current?.info) {
     description +=
-      `<:song:1538552770200600706> **Sonando:** ` +
-      `**[${current.info.title}](${current.info.uri})** ` +
+      `**Sonando:**\n` +
+      `**[${current.info.title}](${current.info.uri})**\n` +
+      `${current.info.author || 'Desconocido'} • ` +
+      `${formatTime(current.info.length || 0)} • ` +
       `<@${current.info.requester || '0'}>\n\n`;
   }
 
   if (queue.length > 0) {
     description +=
-      `<:folder:1538542808648908891> **Siguiente:**\n`;
+      '**Siguiente:**\n';
 
     const upcoming =
       queue.slice(0, 10);
@@ -482,19 +484,18 @@ function createQueueContainer(player) {
           track.info || {};
 
         description +=
-          `**${index + 1}**. ` +
-          `**[${info.title || 'Desconocido'}](${info.uri || 'https://youtube.com'})** ` +
+          `\`${index + 1}.\` ` +
+          `**[${info.title || 'Desconocido'}](${info.uri || 'https://youtube.com'})**\n` +
+          `${info.author || 'Desconocido'} • ` +
+          `${formatTime(info.length || 0)} • ` +
           `<@${info.requester || '0'}>\n`;
       }
     );
 
     if (queue.length > 10) {
       description +=
-        `\n*...y ${queue.length - 10} canción(es) más.*`;
+        `\n*...y ${queue.length - 10} canción(es) más*`;
     }
-
-    description +=
-      `\n${queue.length} ${queue.length === 1 ? 'canción' : 'canciones'} en fila de reproducción.`;
   }
 
   else if (!current) {
@@ -506,6 +507,9 @@ function createQueueContainer(player) {
     queue.length +
     (current ? 1 : 0);
 
+  description +=
+    `\n\n**Total:** ${totalTracks} canción(es)`;
+
   return new ContainerBuilder()
     .setAccentColor(EMBED_COLOR)
 
@@ -515,7 +519,7 @@ function createQueueContainer(player) {
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## <:foldera:1538552555649507409> Siguiente(s)\n\n${description}`
+              `## ${config.emojis.queue} Siguiente(s)\n${description}`
             )
         )
 
@@ -526,7 +530,7 @@ function createQueueContainer(player) {
                 size: 1024
               })
             )
-            .setDescription('Siguiente(s)')
+            .setDescription('Fila de reproducción')
         )
     )
 
@@ -686,9 +690,9 @@ riffy.on(
 
       const container =
         createSimpleContainerNoButtons(
-          'Fila de reproducción finalizada',
-          'La fila de reproducción ha terminado. Saliendo del canal de voz.',
-          '<:info:1538323825542963270>'
+          'Fila finalizada',
+          'La fila de reproducción ha finalizado. Saliendo del canal de voz.',
+          config.emojis.info
         );
 
       await channel.send({
@@ -963,7 +967,7 @@ client.on(
         player.destroy();
 
         return interaction.reply({
-          content: 'Detenido',
+          content: 'Detenida',
 
           flags:
             MessageFlags.Ephemeral
@@ -1046,7 +1050,7 @@ if (config.enablePrefix) {
 
       if (!query) {
         return message.reply(
-          `${config.emojis.error} Proporciona el nombre o URL de una canción.`
+          `${config.emojis.error} Proporciona el nombre de una canción o una URL.`
         );
       }
 
@@ -1107,8 +1111,6 @@ if (config.enablePrefix) {
           );
         }
 
-        /* PLAYLIST */
-
         if (
           resolve.loadType ===
           'playlist'
@@ -1129,11 +1131,11 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Lista de reproducción agregada',
+              'Lista agregada',
 
-              `Se agregó la lista de reproducción **${resolve.playlistInfo?.name || 'Lista desconocida'}** (${resolve.tracks.length} canciones).`,
+              `Se agregó la lista **${resolve.playlistInfo?.name || 'Lista desconocida'}** (${resolve.tracks.length} canciones).`,
 
-              '<:thu:1538554141121581126>'
+              config.emojis.success
             );
 
           await message.reply({
@@ -1146,8 +1148,6 @@ if (config.enablePrefix) {
               MessageFlags.IsComponentsV2
           });
         }
-
-        /* SINGLE TRACK / SEARCH */
 
         else if (
           resolve.loadType ===
@@ -1168,11 +1168,11 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Canción agregada',
+              'Agregada a la fila',
 
-              `<:thu:1538554141121581126> **[${track.info.title}](${track.info.uri})** Agregada a la fila de reproducción.`,
+              `[${track.info.title}](${track.info.uri})`,
 
-              ''
+              config.emojis.success
             );
 
           await message.reply({
@@ -1203,7 +1203,7 @@ if (config.enablePrefix) {
       } catch (error) {
 
         console.error(
-          'Error en el comando play:',
+          'Error en el comando de reproducción:',
           error
         );
 
@@ -1214,19 +1214,6 @@ if (config.enablePrefix) {
     }
   );
 }
-
-/* =========================================================
-   VOICE STATE UPDATE
-========================================================= */
-
-/*
- * Riffy solo necesita los dos eventos de voz:
- *
- * - VOICE_STATE_UPDATE
- * - VOICE_SERVER_UPDATE
- *
- * No enviamos cualquier evento "raw" a Riffy.
- */
 
 client.on(
   'raw',
@@ -1246,10 +1233,6 @@ client.on(
     );
   }
 );
-
-/* =========================================================
-   CLIENT READY
-========================================================= */
 
 client.once(
   'ready',
@@ -1272,20 +1255,16 @@ client.once(
     } catch (error) {
 
       console.error(
-        `${config.emojis.error} No se pudo inicializar Riffy:`,
+        `${config.emojis.error} Error al inicializar Riffy:`,
         error
       );
     }
 
     console.log(
-      `${config.emojis.success} Sistema de comandos con prefijo listo`
+      `${config.emojis.success} Sistema de comandos por prefijo listo`
     );
   }
 );
-
-/* =========================================================
-   START
-========================================================= */
 
 startExpressServer();
 
