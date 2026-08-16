@@ -2015,9 +2015,6 @@ client.once('ready', async () => {
   console.log(
     `${config.emojis.success} Logged in as ${client.user.tag}`
   );
-  
-  await client.application.commands.set([]);
-console.log('✅ Slash commands deleted');
 
   try {
     riffy.init(
