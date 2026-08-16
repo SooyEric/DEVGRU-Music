@@ -35,7 +35,7 @@ function startExpressServer() {
 
       bot: client?.user
         ? client.user.tag
-        : 'Starting...',
+        : 'Iniciando...',
 
       servers: client?.guilds?.cache
         ? client.guilds.cache.size
@@ -44,8 +44,8 @@ function startExpressServer() {
       uptime: process.uptime(),
 
       lavalink: isLavalinkConnected
-        ? 'connected'
-        : 'disconnected'
+        ? 'conectado'
+        : 'desconectado'
     });
   });
 
@@ -88,7 +88,7 @@ function startExpressServer() {
     '0.0.0.0',
     () => {
       console.log(
-        `🌐 Express server running on port ${config.express.port}`
+        `🌐 Servidor Express ejecutándose en el puerto ${config.express.port}`
       );
     }
   );
@@ -135,7 +135,7 @@ riffy.on(
   'nodeConnect',
   (node) => {
     console.log(
-      `${config.emojis.success} Node ${node.name} connected`
+      `${config.emojis.success} Nodo ${node.name} conectado`
     );
 
     isLavalinkConnected = true;
@@ -146,7 +146,7 @@ riffy.on(
   'nodeError',
   (node, error) => {
     console.error(
-      `${config.emojis.error} Node ${node.name} error:`,
+      `${config.emojis.error} Error en el nodo ${node.name}:`,
       error
     );
 
@@ -158,7 +158,7 @@ riffy.on(
   'nodeDisconnect',
   (node) => {
     console.log(
-      `${config.emojis.error} Node ${node.name} disconnected`
+      `${config.emojis.error} Nodo ${node.name} desconectado`
     );
 
     isLavalinkConnected = false;
@@ -281,8 +281,8 @@ function createNowPlayingContainer(
           .addTextDisplayComponents(
             new TextDisplayBuilder()
               .setContent(
-                `## ${config.emojis.music} Now Playing\n` +
-                `**[${info.title || 'Unknown Title'}](${info.uri || 'https://youtube.com'})**`
+                `## ${config.emojis.music} Reproduciendo ahora\n` +
+                `**[${info.title || 'Título desconocido'}](${info.uri || 'https://youtube.com'})**`
               )
           )
 
@@ -291,7 +291,7 @@ function createNowPlayingContainer(
               .setURL(thumbnail)
               .setDescription(
                 info.title ||
-                'Song Thumbnail'
+                'Miniatura de la canción'
               )
           )
       )
@@ -299,8 +299,8 @@ function createNowPlayingContainer(
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
-            `**Duration:** ${formatTime(info.length || 0)} • ` +
-            `**Requested By:** <@${info.requester || '0'}>`
+            `**Duración:** ${formatTime(info.length || 0)} • ` +
+            `**Solicitado por:** <@${info.requester || '0'}>`
           )
       )
 
@@ -425,16 +425,16 @@ function createQueueContainer(player) {
 
   if (current?.info) {
     description +=
-      `**Now Playing:**\n` +
+      `**Reproduciendo ahora:**\n` +
       `**[${current.info.title}](${current.info.uri})**\n` +
-      `${current.info.author || 'Unknown'} • ` +
+      `${current.info.author || 'Desconocido'} • ` +
       `${formatTime(current.info.length || 0)} • ` +
       `<@${current.info.requester || '0'}>\n\n`;
   }
 
   if (queue.length > 0) {
     description +=
-      '**Up Next:**\n';
+      '**A continuación:**\n';
 
     const upcoming =
       queue.slice(0, 10);
@@ -446,8 +446,8 @@ function createQueueContainer(player) {
 
         description +=
           `\`${index + 1}.\` ` +
-          `**[${info.title || 'Unknown'}](${info.uri || 'https://youtube.com'})**\n` +
-          `${info.author || 'Unknown'} • ` +
+          `**[${info.title || 'Desconocido'}](${info.uri || 'https://youtube.com'})**\n` +
+          `${info.author || 'Desconocido'} • ` +
           `${formatTime(info.length || 0)} • ` +
           `<@${info.requester || '0'}>\n`;
       }
@@ -455,13 +455,13 @@ function createQueueContainer(player) {
 
     if (queue.length > 10) {
       description +=
-        `\n*...and ${queue.length - 10} more track(s)*`;
+        `\n*...y ${queue.length - 10} canción(es) más*`;
     }
   }
 
   else if (!current) {
     description =
-      'The queue is currently empty.';
+      'La fila de reproducción está vacía.';
   }
 
   const totalTracks =
@@ -469,7 +469,7 @@ function createQueueContainer(player) {
     (current ? 1 : 0);
 
   description +=
-    `\n\n**Total:** ${totalTracks} tracks`;
+    `\n\n**Total:** ${totalTracks} canción(es)`;
 
   return new ContainerBuilder()
 
@@ -479,7 +479,7 @@ function createQueueContainer(player) {
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## ${config.emojis.queue} Queue\n${description}`
+              `## ${config.emojis.queue} Fila de reproducción\n${description}`
             )
         )
 
@@ -490,7 +490,7 @@ function createQueueContainer(player) {
                 size: 1024
               })
             )
-            .setDescription('Queue')
+            .setDescription('Fila de reproducción')
         )
     )
 
@@ -582,7 +582,7 @@ riffy.on(
 
     } catch (error) {
       console.error(
-        'Failed to send Now Playing message:',
+        'Error al enviar el mensaje de reproducción:',
         error
       );
     }
@@ -628,7 +628,7 @@ riffy.on(
 
       } catch (error) {
         console.error(
-          'Failed to disable buttons:',
+          'Error al desactivar los botones:',
           error
         );
       }
@@ -642,8 +642,8 @@ riffy.on(
 
       const container =
         createSimpleContainerNoButtons(
-          'Queue Ended',
-          'Queue ended, leaving voice channel',
+          'Fila finalizada',
+          'La fila de reproducción ha terminado. Saliendo del canal de voz.',
           config.emojis.success
         );
 
@@ -690,7 +690,7 @@ client.on(
     if (!player) {
       return interaction.reply({
         content:
-          `${config.emojis.error} No player found`,
+          `${config.emojis.error} No se encontró ningún reproductor.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -703,7 +703,7 @@ client.on(
     if (!member.voice?.channel) {
       return interaction.reply({
         content:
-          `${config.emojis.error} You need to be in a voice channel`,
+          `${config.emojis.error} Debes estar en un canal de voz.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -716,7 +716,7 @@ client.on(
     ) {
       return interaction.reply({
         content:
-          `${config.emojis.error} You need to be in the same voice channel`,
+          `${config.emojis.error} Debes estar en el mismo canal de voz.`,
 
         flags:
           MessageFlags.Ephemeral
@@ -750,7 +750,7 @@ client.on(
           player.stop();
 
           return interaction.reply({
-            content: 'Back',
+            content: 'Anterior',
 
             flags:
               MessageFlags.Ephemeral
@@ -760,7 +760,7 @@ client.on(
         if (!player.current) {
           return interaction.reply({
             content:
-              `${config.emojis.error} Nothing is playing`,
+              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
 
             flags:
               MessageFlags.Ephemeral
@@ -778,7 +778,7 @@ client.on(
         player.stop();
 
         return interaction.reply({
-          content: 'Restarted',
+          content: 'Reiniciada',
 
           flags:
             MessageFlags.Ephemeral
@@ -828,8 +828,8 @@ client.on(
         return interaction.reply({
           content:
             shouldPause
-              ? 'Paused'
-              : 'Resumed',
+              ? 'Pausada'
+              : 'Reanudada',
 
           flags:
             MessageFlags.Ephemeral
@@ -842,7 +842,7 @@ client.on(
         if (!player.current) {
           return interaction.reply({
             content:
-              `${config.emojis.error} Nothing is playing`,
+              `${config.emojis.error} No hay ninguna canción reproduciéndose.`,
 
             flags:
               MessageFlags.Ephemeral
@@ -871,7 +871,7 @@ client.on(
         player.stop();
 
         return interaction.reply({
-          content: 'Next',
+          content: 'Siguiente',
 
           flags:
             MessageFlags.Ephemeral
@@ -918,7 +918,7 @@ client.on(
         player.destroy();
 
         return interaction.reply({
-          content: 'Stopped',
+          content: 'Detenida',
 
           flags:
             MessageFlags.Ephemeral
@@ -999,7 +999,7 @@ if (config.enablePrefix) {
 
       if (!query) {
         return message.reply(
-          `${config.emojis.error} Please provide a song name or URL`
+          `${config.emojis.error} Proporciona el nombre de una canción o una URL.`
         );
       }
 
@@ -1007,13 +1007,13 @@ if (config.enablePrefix) {
         !message.member.voice?.channel
       ) {
         return message.reply(
-          `${config.emojis.error} You need to be in a voice channel`
+          `${config.emojis.error} Debes estar en un canal de voz.`
         );
       }
 
       if (!isLavalinkConnected) {
         return message.reply(
-          `${config.emojis.error} Lavalink is not connected. Music commands are unavailable.`
+          `${config.emojis.error} Lavalink no está conectado. Los comandos de música no están disponibles.`
         );
       }
 
@@ -1056,7 +1056,7 @@ if (config.enablePrefix) {
           !resolve.tracks.length
         ) {
           return message.reply(
-            `${config.emojis.error} No results found`
+            `${config.emojis.error} No se encontraron resultados.`
           );
         }
 
@@ -1080,9 +1080,9 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Playlist Added',
+              'Lista de reproducción agregada',
 
-              `Added playlist **${resolve.playlistInfo?.name || 'Unknown Playlist'}** (${resolve.tracks.length} tracks)`,
+              `Se agregó la lista de reproducción **${resolve.playlistInfo?.name || 'Lista desconocida'}** (${resolve.tracks.length} canciones).`,
 
               config.emojis.success
             );
@@ -1117,7 +1117,7 @@ if (config.enablePrefix) {
 
           const container =
             createSimpleContainerNoButtons(
-              'Added to Queue',
+              'Agregada a la fila',
 
               `[${track.info.title}](${track.info.uri})`,
 
@@ -1139,7 +1139,7 @@ if (config.enablePrefix) {
         else {
 
           return message.reply(
-            `${config.emojis.error} No results found`
+            `${config.emojis.error} No se encontraron resultados.`
           );
         }
 
@@ -1154,12 +1154,12 @@ if (config.enablePrefix) {
       } catch (error) {
 
         console.error(
-          'Play command error:',
+          'Error en el comando de reproducción:',
           error
         );
 
         return message.reply(
-          `${config.emojis.error} An error occurred while playing the song`
+          `${config.emojis.error} Ocurrió un error al reproducir la canción.`
         );
       }
     }
@@ -1190,7 +1190,7 @@ client.once(
   async () => {
 
     console.log(
-      `${config.emojis.success} Logged in as ${client.user.tag}`
+      `${config.emojis.success} Sesión iniciada como ${client.user.tag}`
     );
 
     try {
@@ -1200,19 +1200,19 @@ client.once(
       );
 
       console.log(
-        `${config.emojis.success} Riffy initialized`
+        `${config.emojis.success} Riffy inicializado`
       );
 
     } catch (error) {
 
       console.error(
-        `${config.emojis.error} Failed to initialize Riffy:`,
+        `${config.emojis.error} Error al inicializar Riffy:`,
         error
       );
     }
 
     console.log(
-      `${config.emojis.success} Prefix command system ready`
+      `${config.emojis.success} Sistema de comandos con prefijo listo`
     );
   }
 );
