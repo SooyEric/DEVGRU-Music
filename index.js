@@ -274,19 +274,18 @@ function createNowPlayingContainer(
 
   const container =
     new ContainerBuilder()
-
+  
       .addSectionComponents(
         new SectionBuilder()
-
+  
           .addTextDisplayComponents(
             new TextDisplayBuilder()
-            .setContent(
-              `## <:songa:1538552887494443098> Reproduciendo\n` +
-              `\`${info.title || 'Título desconocido'}\`\n\n` +
-              `Solicitada por <@${info.requester || '0'}>`
-            )
+              .setContent(
+                `## <:songa:1538552887494443098> Reproduciendo\n` +
+                `\`${info.title || 'Título desconocido'}\``
+              )
           )
-
+  
           .setThumbnailAccessory(
             new ThumbnailBuilder()
               .setURL(thumbnail)
@@ -296,11 +295,12 @@ function createNowPlayingContainer(
               )
           )
       )
-
+  
       .addTextDisplayComponents(
         new TextDisplayBuilder()
           .setContent(
-            `Duración: ${formatTime(info.length || 0)}`
+            `Solicitada por <@${info.requester || '0'}>\n` +
+            `Duración: \`${formatTime(info.length || 0)}\``
           )
       )
 
