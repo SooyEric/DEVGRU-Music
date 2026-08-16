@@ -1112,14 +1112,14 @@ if (config.enablePrefix) {
             track
           );
 
-          const container =
-            new ContainerBuilder()
-              .addTextDisplayComponents(
-                new TextDisplayBuilder()
-                  .setContent(
-                    `<:thu:1538554141121581126> **[${track.info.title}](${track.info.uri})** Agregada a la fila de reproducción.`
-                  )
-              );
+           const container =
+        new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder()
+              .setContent(
+                `<:thu:1538554141121581126> \`${track.info.title}\` Agregada a la fila de reproducción.`
+              )
+          );
 
           await message.reply({
             components: [
