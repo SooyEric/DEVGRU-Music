@@ -24,6 +24,13 @@ let client;
 let riffy;
 let isLavalinkConnected = false;
 
+const nowPlayingMessages = new Map();
+const trackHistory = new Map();
+const lastPlayedTracks = new Map();
+const navigationActions = new Set();
+const voiceIdleTimers = new Map();
+const playLocks = new Set();
+
 function startExpressServer() {
   if (!config.express.enabled) return;
 
@@ -32,17 +39,13 @@ function startExpressServer() {
   app.get('/', (req, res) => {
     res.json({
       status: 'online',
-
       bot: client?.user
         ? client.user.tag
         : 'Iniciando...',
-
       servers: client?.guilds?.cache
         ? client.guilds.cache.size
         : 0,
-
       uptime: process.uptime(),
-
       lavalink: isLavalinkConnected
         ? 'conectado'
         : 'desconectado'
@@ -54,32 +57,24 @@ function startExpressServer() {
       guilds: client?.guilds?.cache
         ? client.guilds.cache.size
         : 0,
-
       users: client?.guilds?.cache
         ? client.guilds.cache.reduce(
-            (acc, guild) =>
-              acc + guild.memberCount,
+            (acc, guild) => acc + guild.memberCount,
             0
           )
         : 0,
-
       players: riffy?.players
         ? riffy.players.size
         : 0,
-
       uptime: process.uptime(),
-
       memory:
         process.memoryUsage().heapUsed /
         1024 /
         1024,
-
       ping: client?.ws
         ? client.ws.ping
         : 0,
-
-      lavalink:
-        isLavalinkConnected
+      lavalink: isLavalinkConnected
     });
   });
 
@@ -124,9 +119,7 @@ riffy = new Riffy(
         guild.shard.send(payload);
       }
     },
-
     defaultSearchPlatform: 'ytmsearch',
-
     restVersion: 'v4'
   }
 );
@@ -165,20 +158,51 @@ riffy.on(
   }
 );
 
-const nowPlayingMessages =
-  new Map();
+async function startPlayer(player) {
+  if (!player) return false;
 
-const trackHistory =
-  new Map();
+  const guildId =
+    player.guildId;
 
-const lastPlayedTracks =
-  new Map();
+  if (playLocks.has(guildId)) {
+    return false;
+  }
 
-const navigationActions =
-  new Set();
+  if (
+    player.playing ||
+    player.paused ||
+    !player.queue ||
+    player.queue.length === 0
+  ) {
+    return false;
+  }
 
-const voiceIdleTimers =
-  new Map();
+  playLocks.add(guildId);
+
+  try {
+    if (
+      !player.queue ||
+      player.queue.length === 0 ||
+      player.playing ||
+      player.paused
+    ) {
+      return false;
+    }
+
+    await player.play();
+
+    return true;
+  } catch (error) {
+    console.error(
+      `Error al iniciar la reproducción en ${guildId}:`,
+      error
+    );
+
+    return false;
+  } finally {
+    playLocks.delete(guildId);
+  }
+}
 
 function formatTime(ms) {
   const milliseconds =
@@ -260,9 +284,7 @@ function getTrackThumbnail(info) {
   return thumbnail;
 }
 
-function createErrorContainer(
-  description
-) {
+function createErrorContainer(description) {
   return new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder()
@@ -286,110 +308,100 @@ function createNowPlayingContainer(
   const isPaused =
     player.paused;
 
-  const container =
-    new ContainerBuilder()
-      .setAccentColor(0xffaf1a)
+  return new ContainerBuilder()
+    .setAccentColor(0xffaf1a)
+    .addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder()
+            .setContent(
+              `## <:songa:1538552887494443098> Reproduciendo\n` +
+              `\`${info.title || 'Título desconocido'}\``
+            )
+        )
+        .setThumbnailAccessory(
+          new ThumbnailBuilder()
+            .setURL(thumbnail)
+            .setDescription(
+              info.title ||
+              'Miniatura de la canción'
+            )
+        )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder()
+        .setContent(
+          `Solicitada por <@${info.requester || '0'}>\n` +
+          `Duración: \`${formatTime(info.length || 0)}\``
+        )
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder()
+        .setSpacing(
+          SeparatorSpacingSize.Small
+        )
+        .setDivider(true)
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('back')
+            .setEmoji(
+              '<:left:1538544846459899955>'
+            )
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+            .setDisabled(disabled),
 
-      .addSectionComponents(
-        new SectionBuilder()
+          new ButtonBuilder()
+            .setCustomId(
+              isPaused
+                ? 'resume'
+                : 'pause'
+            )
+            .setEmoji(
+              isPaused
+                ? '<:play:1538541584167997503>'
+                : '<:pause:1538541612353855489>'
+            )
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+            .setDisabled(disabled),
 
-          .addTextDisplayComponents(
-            new TextDisplayBuilder()
-              .setContent(
-                `## <:songa:1538552887494443098> Reproduciendo\n` +
-                `\`${info.title || 'Título desconocido'}\``
-              )
-          )
+          new ButtonBuilder()
+            .setCustomId('skip')
+            .setEmoji(
+              '<:right:1538541644695998545>'
+            )
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+            .setDisabled(disabled),
 
-          .setThumbnailAccessory(
-            new ThumbnailBuilder()
-              .setURL(thumbnail)
-              .setDescription(
-                info.title ||
-                'Miniatura de la canción'
-              )
-          )
-      )
+          new ButtonBuilder()
+            .setCustomId('queue')
+            .setEmoji(
+              '<:folder:1538542808648908891>'
+            )
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+            .setDisabled(disabled),
 
-      .addTextDisplayComponents(
-        new TextDisplayBuilder()
-          .setContent(
-            `Solicitada por <@${info.requester || '0'}>\n` +
-            `Duración: \`${formatTime(info.length || 0)}\``
-          )
-      )
-
-      .addSeparatorComponents(
-        new SeparatorBuilder()
-          .setSpacing(
-            SeparatorSpacingSize.Small
-          )
-          .setDivider(true)
-      )
-
-      .addActionRowComponents(
-        new ActionRowBuilder()
-          .addComponents(
-
-            new ButtonBuilder()
-              .setCustomId('back')
-              .setEmoji(
-                '<:left:1538544846459899955>'
-              )
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId(
-                isPaused
-                  ? 'resume'
-                  : 'pause'
-              )
-              .setEmoji(
-                isPaused
-                  ? '<:play:1538541584167997503>'
-                  : '<:pause:1538541612353855489>'
-              )
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('skip')
-              .setEmoji(
-                '<:right:1538541644695998545>'
-              )
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('queue')
-              .setEmoji(
-                '<:folder:1538542808648908891>'
-              )
-              .setStyle(
-                ButtonStyle.Secondary
-              )
-              .setDisabled(disabled),
-
-            new ButtonBuilder()
-              .setCustomId('stop')
-              .setEmoji(
-                '<:cancel:1538544866659672144>'
-              )
-              .setStyle(
-                ButtonStyle.Danger
-              )
-              .setDisabled(disabled)
-          )
-      );
-
-  return container;
+          new ButtonBuilder()
+            .setCustomId('stop')
+            .setEmoji(
+              '<:cancel:1538544866659672144>'
+            )
+            .setStyle(
+              ButtonStyle.Danger
+            )
+            .setDisabled(disabled)
+        )
+    );
 }
 
 function createSimpleContainerNoButtons(
@@ -398,17 +410,14 @@ function createSimpleContainerNoButtons(
   emoji = config.emojis.info
 ) {
   return new ContainerBuilder()
-
     .addSectionComponents(
       new SectionBuilder()
-
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
               `## ${emoji} ${title}\n${description}`
             )
         )
-
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -419,7 +428,6 @@ function createSimpleContainerNoButtons(
             .setDescription(title)
         )
     )
-
     .addSeparatorComponents(
       new SeparatorBuilder()
         .setSpacing(
@@ -456,19 +464,15 @@ function createQueueContainer(player) {
 
     description +=
       `\n${queue.length} cancion(es) en fila de reproducción.`;
-  }
-
-  else {
+  } else {
     description =
       'La fila de reproducción está vacía.';
   }
 
   return new ContainerBuilder()
     .setAccentColor(0xffaf1a)
-
     .addSectionComponents(
       new SectionBuilder()
-
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
@@ -479,7 +483,6 @@ function createQueueContainer(player) {
               } Siguiente(s)\n\n${description}`
             )
         )
-
         .setThumbnailAccessory(
           new ThumbnailBuilder()
             .setURL(
@@ -490,7 +493,6 @@ function createQueueContainer(player) {
             .setDescription('Siguiente(s)')
         )
     )
-
     .addSeparatorComponents(
       new SeparatorBuilder()
         .setSpacing(
@@ -519,14 +521,10 @@ function startVoiceIdleTimer(player) {
   const timer =
     setTimeout(
       async () => {
-        voiceIdleTimers.delete(
-          guildId
-        );
+        voiceIdleTimers.delete(guildId);
 
         const guild =
-          client.guilds.cache.get(
-            guildId
-          );
+          client.guilds.cache.get(guildId);
 
         if (!guild) return;
 
@@ -560,7 +558,6 @@ function startVoiceIdleTimer(player) {
                   'Abandoné el canal de voz por inactividad.'
                 )
               ],
-
               flags:
                 MessageFlags.IsComponentsV2
             });
@@ -572,17 +569,10 @@ function startVoiceIdleTimer(player) {
           }
         }
 
-        trackHistory.delete(
-          guildId
-        );
-
-        lastPlayedTracks.delete(
-          guildId
-        );
-
-        navigationActions.delete(
-          guildId
-        );
+        trackHistory.delete(guildId);
+        lastPlayedTracks.delete(guildId);
+        navigationActions.delete(guildId);
+        playLocks.delete(guildId);
 
         player.destroy();
       },
@@ -598,10 +588,7 @@ function startVoiceIdleTimer(player) {
 client.on(
   'voiceStateUpdate',
   async (oldState, newState) => {
-
-    if (!client.user) {
-      return;
-    }
+    if (!client.user) return;
 
     if (
       oldState.id !== client.user.id &&
@@ -614,25 +601,17 @@ client.on(
       newState.guild ||
       oldState.guild;
 
-    if (!guild) {
-      return;
-    }
+    if (!guild) return;
 
     const player =
-      riffy.players.get(
-        guild.id
-      );
+      riffy.players.get(guild.id);
 
-    if (!player) {
-      return;
-    }
+    if (!player) return;
 
     const botMember =
       guild.members.me;
 
-    if (!botMember) {
-      return;
-    }
+    if (!botMember) return;
 
     const wasConnected =
       Boolean(oldState.channelId);
@@ -645,7 +624,6 @@ client.on(
       wasConnected &&
       newState.serverMute
     ) {
-
       try {
         if (botMember.voice.serverMute) {
           await botMember.voice.setMute(false);
@@ -670,7 +648,6 @@ client.on(
                 'Fui silenciado y abandoné el canal de voz.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2
           });
@@ -682,21 +659,11 @@ client.on(
         }
       }
 
-      clearVoiceIdleTimer(
-        guild.id
-      );
-
-      trackHistory.delete(
-        guild.id
-      );
-
-      lastPlayedTracks.delete(
-        guild.id
-      );
-
-      navigationActions.delete(
-        guild.id
-      );
+      clearVoiceIdleTimer(guild.id);
+      trackHistory.delete(guild.id);
+      lastPlayedTracks.delete(guild.id);
+      navigationActions.delete(guild.id);
+      playLocks.delete(guild.id);
 
       player.destroy();
 
@@ -709,7 +676,6 @@ client.on(
       isConnected &&
       oldState.channelId !== newState.channelId
     ) {
-
       const channel =
         client.channels.cache.get(
           player.textChannel
@@ -723,7 +689,6 @@ client.on(
                 'Fui movido de canal de voz y abandoné la conexión.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2
           });
@@ -735,21 +700,11 @@ client.on(
         }
       }
 
-      clearVoiceIdleTimer(
-        guild.id
-      );
-
-      trackHistory.delete(
-        guild.id
-      );
-
-      lastPlayedTracks.delete(
-        guild.id
-      );
-
-      navigationActions.delete(
-        guild.id
-      );
+      clearVoiceIdleTimer(guild.id);
+      trackHistory.delete(guild.id);
+      lastPlayedTracks.delete(guild.id);
+      navigationActions.delete(guild.id);
+      playLocks.delete(guild.id);
 
       player.destroy();
 
@@ -761,7 +716,6 @@ client.on(
       wasConnected &&
       !isConnected
     ) {
-
       const channel =
         client.channels.cache.get(
           player.textChannel
@@ -775,7 +729,6 @@ client.on(
                 'Fui desconectado del canal de voz.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2
           });
@@ -787,21 +740,11 @@ client.on(
         }
       }
 
-      clearVoiceIdleTimer(
-        guild.id
-      );
-
-      trackHistory.delete(
-        guild.id
-      );
-
-      lastPlayedTracks.delete(
-        guild.id
-      );
-
-      navigationActions.delete(
-        guild.id
-      );
+      clearVoiceIdleTimer(guild.id);
+      trackHistory.delete(guild.id);
+      lastPlayedTracks.delete(guild.id);
+      navigationActions.delete(guild.id);
+      playLocks.delete(guild.id);
 
       player.destroy();
 
@@ -815,10 +758,7 @@ client.on(
     }
 
     if (!botMember.voice.channel) {
-      clearVoiceIdleTimer(
-        guild.id
-      );
-
+      clearVoiceIdleTimer(guild.id);
       return;
     }
 
@@ -832,21 +772,14 @@ client.on(
       );
 
     if (hasUsers) {
-      clearVoiceIdleTimer(
-        guild.id
-      );
-
+      clearVoiceIdleTimer(guild.id);
       return;
     }
 
     if (
-      !voiceIdleTimers.has(
-        guild.id
-      )
+      !voiceIdleTimers.has(guild.id)
     ) {
-      startVoiceIdleTimer(
-        player
-      );
+      startVoiceIdleTimer(player);
     }
   }
 );
@@ -854,7 +787,6 @@ client.on(
 riffy.on(
   'trackStart',
   async (player, track) => {
-
     clearVoiceIdleTimer(
       player.guildId
     );
@@ -884,9 +816,7 @@ riffy.on(
         track.info?.uri &&
       !isNavigation
     ) {
-      history.push(
-        lastTrack
-      );
+      history.push(lastTrack);
 
       if (history.length > 20) {
         history.shift();
@@ -921,7 +851,6 @@ riffy.on(
           components: [
             container
           ],
-
           flags:
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
@@ -931,7 +860,6 @@ riffy.on(
         guildId,
         message
       );
-
     } catch (error) {
       console.error(
         'Error al enviar el mensaje de reproducción:',
@@ -944,6 +872,10 @@ riffy.on(
 riffy.on(
   'queueEnd',
   async (player) => {
+    const guildId =
+      player.guildId;
+
+    playLocks.delete(guildId);
 
     const channel =
       client.channels.cache.get(
@@ -952,14 +884,13 @@ riffy.on(
 
     const message =
       nowPlayingMessages.get(
-        player.guildId
+        guildId
       );
 
     if (
       message &&
       player.current
     ) {
-
       try {
         const disabledContainer =
           createNowPlayingContainer(
@@ -972,12 +903,10 @@ riffy.on(
           components: [
             disabledContainer
           ],
-
           flags:
             MessageFlags.IsPersistent |
             MessageFlags.IsComponentsV2
         });
-
       } catch (error) {
         console.error(
           'Error al desactivar los botones:',
@@ -986,12 +915,11 @@ riffy.on(
       }
 
       nowPlayingMessages.delete(
-        player.guildId
+        guildId
       );
     }
 
     if (channel) {
-
       const container =
         new ContainerBuilder()
           .addTextDisplayComponents(
@@ -1001,33 +929,29 @@ riffy.on(
               )
           );
 
-      await channel.send({
-        components: [
-          container
-        ],
-
-        flags:
-          MessageFlags.IsPersistent |
-          MessageFlags.IsComponentsV2
-      });
+      try {
+        await channel.send({
+          components: [
+            container
+          ],
+          flags:
+            MessageFlags.IsPersistent |
+            MessageFlags.IsComponentsV2
+        });
+      } catch (error) {
+        console.error(
+          'Error al enviar el mensaje de finalización:',
+          error
+        );
+      }
     }
 
-    trackHistory.delete(
-      player.guildId
-    );
-
-    lastPlayedTracks.delete(
-      player.guildId
-    );
-
-    navigationActions.delete(
-      player.guildId
-    );
+    trackHistory.delete(guildId);
+    lastPlayedTracks.delete(guildId);
+    navigationActions.delete(guildId);
 
     const guild =
-      client.guilds.cache.get(
-        player.guildId
-      );
+      client.guilds.cache.get(guildId);
 
     const botMember =
       guild?.members.me;
@@ -1042,9 +966,7 @@ riffy.on(
         );
 
       if (!hasUsers) {
-        startVoiceIdleTimer(
-          player
-        );
+        startVoiceIdleTimer(player);
       }
     }
   }
@@ -1053,7 +975,6 @@ riffy.on(
 client.on(
   'interactionCreate',
   async (interaction) => {
-
     if (!interaction.isButton()) {
       return;
     }
@@ -1070,7 +991,6 @@ client.on(
             'No se encontró ningún reproductor.'
           )
         ],
-
         flags:
           MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
@@ -1087,7 +1007,6 @@ client.on(
             'Debes estar en un canal de voz.'
           )
         ],
-
         flags:
           MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
@@ -1104,7 +1023,6 @@ client.on(
             'Debes estar en el mismo canal de voz.'
           )
         ],
-
         flags:
           MessageFlags.IsComponentsV2 |
           MessageFlags.Ephemeral
@@ -1114,16 +1032,13 @@ client.on(
     switch (
       interaction.customId
     ) {
-
       case 'back': {
-
         const history =
           trackHistory.get(
             player.guildId
           ) || [];
 
         if (history.length > 0) {
-
           const previousTrack =
             history.pop();
 
@@ -1137,12 +1052,13 @@ client.on(
 
           player.stop();
 
-          return interaction.reply({
+          await interaction.reply({
             content: 'Anterior',
-
             flags:
               MessageFlags.Ephemeral
           });
+
+          return;
         }
 
         if (!player.current) {
@@ -1152,7 +1068,6 @@ client.on(
                 'No hay ninguna canción reproduciéndose.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2 |
               MessageFlags.Ephemeral
@@ -1171,7 +1086,6 @@ client.on(
 
         return interaction.reply({
           content: 'Reiniciada',
-
           flags:
             MessageFlags.Ephemeral
         });
@@ -1179,7 +1093,6 @@ client.on(
 
       case 'pause':
       case 'resume': {
-
         const message =
           nowPlayingMessages.get(
             player.guildId
@@ -1197,7 +1110,6 @@ client.on(
           message &&
           player.current
         ) {
-
           const updatedContainer =
             createNowPlayingContainer(
               player,
@@ -1208,11 +1120,9 @@ client.on(
             components: [
               updatedContainer
             ],
-
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
-
           }).catch(() => {});
         }
 
@@ -1221,14 +1131,12 @@ client.on(
             shouldPause
               ? 'Pausada'
               : 'Reanudada',
-
           flags:
             MessageFlags.Ephemeral
         });
       }
 
       case 'skip': {
-
         if (!player.current) {
           return interaction.reply({
             components: [
@@ -1236,7 +1144,6 @@ client.on(
                 'No hay ninguna canción reproduciéndose.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2 |
               MessageFlags.Ephemeral
@@ -1255,7 +1162,6 @@ client.on(
             components: [
               disabledContainer
             ],
-
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
@@ -1266,20 +1172,17 @@ client.on(
 
         return interaction.reply({
           content: 'Siguiente',
-
           flags:
             MessageFlags.Ephemeral
         });
       }
 
       case 'stop': {
-
         clearVoiceIdleTimer(
           player.guildId
         );
 
         if (player.current) {
-
           const disabledContainer =
             createNowPlayingContainer(
               player,
@@ -1292,7 +1195,6 @@ client.on(
               components: [
                 disabledContainer
               ],
-
               flags:
                 MessageFlags.IsPersistent |
                 MessageFlags.IsComponentsV2
@@ -1312,18 +1214,20 @@ client.on(
           player.guildId
         );
 
+        playLocks.delete(
+          player.guildId
+        );
+
         player.destroy();
 
         return interaction.reply({
           content: 'Detenida',
-
           flags:
             MessageFlags.Ephemeral
         });
       }
 
       case 'queue': {
-
         const queueContainer =
           createQueueContainer(
             player
@@ -1333,7 +1237,6 @@ client.on(
           components: [
             queueContainer
           ],
-
           flags:
             MessageFlags.IsComponentsV2 |
             MessageFlags.Ephemeral
@@ -1347,11 +1250,9 @@ client.on(
 );
 
 if (config.enablePrefix) {
-
   client.on(
     'messageCreate',
     async (message) => {
-
       if (
         message.author.bot ||
         !message.guild
@@ -1399,7 +1300,6 @@ if (config.enablePrefix) {
               'Proporciona el nombre de una canción o una URL.'
             )
           ],
-
           flags:
             MessageFlags.IsComponentsV2
         });
@@ -1414,7 +1314,6 @@ if (config.enablePrefix) {
               'Debes estar en un canal de voz.'
             )
           ],
-
           flags:
             MessageFlags.IsComponentsV2
         });
@@ -1427,41 +1326,55 @@ if (config.enablePrefix) {
               'Lavalink no está conectado. Los comandos de música no están disponibles.'
             )
           ],
-
           flags:
             MessageFlags.IsComponentsV2
         });
       }
 
       try {
-
         let player =
           riffy.players.get(
             message.guild.id
           );
 
         if (!player) {
-
           player =
             riffy.createConnection({
-
               guildId:
                 message.guild.id,
-
               voiceChannel:
                 message.member.voice.channel.id,
-
               textChannel:
                 message.channel.id,
-
               deaf: true
             });
+        } else {
+          player.textChannel =
+            message.channel.id;
+
+          if (
+            player.voiceChannel !==
+            message.member.voice.channel.id
+          ) {
+            return message.reply({
+              components: [
+                createErrorContainer(
+                  'Debes estar en el mismo canal de voz.'
+                )
+              ],
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          }
         }
+
+        clearVoiceIdleTimer(
+          message.guild.id
+        );
 
         const resolve =
           await riffy.resolve({
             query,
-
             requester:
               message.author.id
           });
@@ -1477,7 +1390,6 @@ if (config.enablePrefix) {
                 'No se encontraron resultados.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2
           });
@@ -1487,12 +1399,10 @@ if (config.enablePrefix) {
           resolve.loadType ===
           'playlist'
         ) {
-
           for (
             const track
             of resolve.tracks
           ) {
-
             track.info.requester =
               message.author.id;
 
@@ -1504,9 +1414,7 @@ if (config.enablePrefix) {
           const container =
             createSimpleContainerNoButtons(
               'Lista de reproducción agregada',
-
               `Se agregó la lista de reproducción **${resolve.playlistInfo?.name || 'Lista desconocida'}** (${resolve.tracks.length} canciones).`,
-
               config.emojis.success
             );
 
@@ -1514,20 +1422,16 @@ if (config.enablePrefix) {
             components: [
               container
             ],
-
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
           });
-        }
-
-        else if (
+        } else if (
           resolve.loadType ===
             'search' ||
           resolve.loadType ===
             'track'
         ) {
-
           const track =
             resolve.tracks[0];
 
@@ -1551,45 +1455,26 @@ if (config.enablePrefix) {
             components: [
               container
             ],
-
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
           });
-        }
-
-        else {
-
+        } else {
           return message.reply({
             components: [
               createErrorContainer(
                 'No se encontraron resultados.'
               )
             ],
-
             flags:
               MessageFlags.IsComponentsV2
           });
         }
 
-      if (
-        riffy.players.get(message.guild.id) === player &&
-        player.queue.length > 0 &&
-        !player.playing &&
-        !player.paused
-      ) {
-        try {
-          await player.play();
-        } catch (error) {
-          console.error(
-            'Error al iniciar la reproducción:',
-            error
-          );
-        }
-      }
-
+        await startPlayer(
+          player
+        );
       } catch (error) {
-
         console.error(
           'Error en el comando de reproducción:',
           error
@@ -1601,7 +1486,6 @@ if (config.enablePrefix) {
               'Ocurrió un error al reproducir la canción.'
             )
           ],
-
           flags:
             MessageFlags.IsComponentsV2
         });
@@ -1613,7 +1497,6 @@ if (config.enablePrefix) {
 client.on(
   'raw',
   (data) => {
-
     if (
       ![
         GatewayDispatchEvents.VoiceStateUpdate,
@@ -1632,13 +1515,11 @@ client.on(
 client.once(
   'ready',
   async () => {
-
     console.log(
       `${config.emojis.success} Sesión iniciada como ${client.user.tag}`
     );
 
     try {
-
       riffy.init(
         client.user.id
       );
@@ -1646,14 +1527,11 @@ client.once(
       console.log(
         `${config.emojis.success} Riffy inicializado`
       );
-
     } catch (error) {
-
       console.error(
         `${config.emojis.error} Error al inicializar Riffy:`,
         error
       );
-
     }
 
     console.log(
