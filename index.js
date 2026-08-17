@@ -25,6 +25,7 @@ let riffy;
 let isLavalinkConnected = false;
 
 const nowPlayingMessages = new Map();
+const skipMessages = new Map();
 const trackHistory = new Map();
 const lastPlayedTracks = new Map();
 const navigationActions = new Set();
@@ -324,7 +325,8 @@ function createErrorContainer(description) {
 function createNowPlayingContainer(
   player,
   track,
-  disabled = false
+  disabled = false,
+  title = 'Reproduciendo'
 ) {
   const info =
     track?.info ?? {};
@@ -342,7 +344,7 @@ function createNowPlayingContainer(
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## <:songa:1538552887494443098> Reproduciendo\n` +
+              `## <:songa:1538552887494443098> ${title}\n` +
               `\`${info.title || 'Título desconocido'}\``
             )
         )
@@ -821,6 +823,11 @@ riffy.on(
     const guildId =
       player.guildId;
 
+    const previousSkipMessage =
+      skipMessages.get(guildId);
+
+    skipMessages.delete(guildId);
+
     if (!trackHistory.has(guildId)) {
       trackHistory.set(
         guildId,
@@ -887,6 +894,13 @@ riffy.on(
         guildId,
         message
       );
+
+      if (previousSkipMessage) {
+        try {
+          await previousSkipMessage.delete();
+        } catch (error) {
+        }
+      }
     } catch (error) {
       console.error(
         'Error al enviar el mensaje de reproducción:',
@@ -1203,6 +1217,11 @@ client.on(
           })
           .catch(() => {});
 
+        skipMessages.set(
+          player.guildId,
+          interaction.message
+        );
+
         player.stop();
 
         return interaction.reply({
@@ -1217,12 +1236,17 @@ client.on(
           player.guildId
         );
 
+        skipMessages.delete(
+          player.guildId
+        );
+
         if (player.current) {
           const disabledContainer =
             createNowPlayingContainer(
               player,
               player.current,
-              true
+              true,
+              'Detenido'
             );
 
           await interaction.message
