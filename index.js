@@ -1572,12 +1572,21 @@ if (config.enablePrefix) {
           });
         }
 
-        if (
-          !player.playing &&
-          !player.paused
-        ) {
-          player.play();
+      if (
+        riffy.players.get(message.guild.id) === player &&
+        player.queue.length > 0 &&
+        !player.playing &&
+        !player.paused
+      ) {
+        try {
+          await player.play();
+        } catch (error) {
+          console.error(
+            'Error al iniciar la reproducción:',
+            error
+          );
         }
+      }
 
       } catch (error) {
 
