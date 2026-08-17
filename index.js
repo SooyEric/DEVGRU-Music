@@ -34,6 +34,7 @@ const playLocks = new Set();
 const protectedPlayers = new WeakSet();
 const finishedQueues = new Set();
 const playbackActions = new Map();
+const playerDestroyReasons = new Map();
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -635,6 +636,11 @@ function startVoiceIdleTimer(player) {
 
         finishedQueues.delete(guild.id);
 
+        playerDestroyReasons.set(
+          guild.id,
+          'voiceDisconnect'
+        );
+        
         player.destroy();
       },
       30000
@@ -729,6 +735,11 @@ client.on(
 
       finishedQueues.delete(guild.id);
 
+      playerDestroyReasons.set(
+        guild.id,
+        'voiceDisconnect'
+      );
+      
       player.destroy();
 
       return;
@@ -772,6 +783,11 @@ client.on(
       playbackActions.delete(guild.id);
 
       finishedQueues.delete(guild.id);
+      
+      playerDestroyReasons.set(
+        guild.id,
+        'voiceDisconnect'
+      );
 
       player.destroy();
 
@@ -815,6 +831,11 @@ client.on(
       playbackActions.delete(guild.id);
 
       finishedQueues.delete(guild.id);
+
+      playerDestroyReasons.set(
+        guild.id,
+        'voiceDisconnect'
+      );
 
       player.destroy();
 
@@ -964,6 +985,19 @@ riffy.on(
   async (player) => {
     const guildId =
       player.guildId;
+      
+    const destroyReason =
+      playerDestroyReasons.get(
+        player.guildId
+      );
+
+    if (destroyReason === 'voiceDisconnect') {
+      playerDestroyReasons.delete(
+        player.guildId
+      );
+      
+        return;
+      }
 
     playLocks.delete(guildId);
 
@@ -1439,6 +1473,11 @@ client.on(
           }
         }
 
+        playerDestroyReasons.set(
+          guildId,
+          'manualStop'
+        );
+        
         player.destroy();
 
         return interaction.reply({
