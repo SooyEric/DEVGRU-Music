@@ -616,62 +616,118 @@ client.on(
     }
 
     if (
-      newState.id === client.user.id &&
-      (newState.serverMute || newState.selfMute)
+      newState.id === client.user.id
     ) {
-      try {
-        await guild.members.me.voice.setMute(false);
-      } catch (error) {
-        console.error(
-          'Error al desmutear el bot:',
-          error
-        );
-      }
-
-      const channel =
-        client.channels.cache.get(
-          player.textChannel
-        );
-
-      if (channel) {
+      if (
+        newState.serverMute ||
+        newState.selfMute
+      ) {
         try {
-          await channel.send({
-            components: [
-              createErrorContainer(
-                'Fui muteado en el canal de voz y abandoné el canal.'
-              )
-            ],
-
-            flags:
-              MessageFlags.IsComponentsV2
-          });
+          await guild.members.me.voice.setMute(false);
         } catch (error) {
           console.error(
-            'Error al enviar el mensaje de mute:',
+            'Error al desmutear el bot:',
             error
           );
         }
+
+        const channel =
+          client.channels.cache.get(
+            player.textChannel
+          );
+
+        if (channel) {
+          try {
+            await channel.send({
+              components: [
+                createErrorContainer(
+                  'Fui muteado en el canal de voz y abandoné el canal.'
+                )
+              ],
+
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          } catch (error) {
+            console.error(
+              'Error al enviar el mensaje de mute:',
+              error
+            );
+          }
+        }
+
+        clearVoiceIdleTimer(
+          guild.id
+        );
+
+        trackHistory.delete(
+          guild.id
+        );
+
+        lastPlayedTracks.delete(
+          guild.id
+        );
+
+        navigationActions.delete(
+          guild.id
+        );
+
+        player.destroy();
+
+        return;
       }
 
-      clearVoiceIdleTimer(
-        guild.id
-      );
+      if (
+        newState.channelId !==
+        player.voiceChannel
+      ) {
+        const channel =
+          client.channels.cache.get(
+            player.textChannel
+          );
 
-      trackHistory.delete(
-        guild.id
-      );
+        if (channel) {
+          try {
+            await channel.send({
+              components: [
+                createErrorContainer(
+                  newState.channelId
+                    ? 'Fui movido de canal de voz y abandoné el canal.'
+                    : 'Fui desconectado del canal de voz y abandoné la reproducción.'
+                )
+              ],
 
-      lastPlayedTracks.delete(
-        guild.id
-      );
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          } catch (error) {
+            console.error(
+              'Error al enviar el mensaje de desconexión:',
+              error
+            );
+          }
+        }
 
-      navigationActions.delete(
-        guild.id
-      );
+        clearVoiceIdleTimer(
+          guild.id
+        );
 
-      player.destroy();
+        trackHistory.delete(
+          guild.id
+        );
 
-      return;
+        lastPlayedTracks.delete(
+          guild.id
+        );
+
+        navigationActions.delete(
+          guild.id
+        );
+
+        player.destroy();
+
+        return;
+      }
     }
 
     const botMember =
