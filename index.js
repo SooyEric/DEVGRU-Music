@@ -1055,6 +1055,36 @@ client.on(
           MessageFlags.Ephemeral
       });
     }
+    
+    const currentTrack =
+      player.current;
+
+    const requesterId =
+      currentTrack?.info?.requester;
+    
+    const isRequester =
+      requesterId === interaction.user.id;
+    
+    const isAdministrator =
+      interaction.member.permissions.has(
+        'Administrator'
+      );
+    
+    if (
+      !isRequester &&
+      !isAdministrator
+    ) {
+      return interaction.reply({
+        components: [
+          createErrorContainer(
+            'No tienes permiso para utilizar los controles de reproducción.'
+          )
+        ],
+        flags:
+          MessageFlags.IsComponentsV2 |
+          MessageFlags.Ephemeral
+      });
+    }
 
     if (
       member.voice.channel.id !==
@@ -1203,7 +1233,8 @@ client.on(
           createNowPlayingContainer(
             player,
             player.current,
-            true
+            true,
+            'Finalizada'
           );
 
         await interaction.message
