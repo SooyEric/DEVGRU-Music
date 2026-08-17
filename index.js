@@ -598,11 +598,23 @@ function startVoiceIdleTimer(player) {
 client.on(
   'voiceStateUpdate',
   async (oldState, newState) => {
+
+    if (!client.user) {
+      return;
+    }
+
+    if (
+      oldState.id !== client.user.id &&
+      newState.id !== client.user.id
+    ) {
+      return;
+    }
+
     const guild =
       newState.guild ||
       oldState.guild;
 
-    if (!guild || !client.user) {
+    if (!guild) {
       return;
     }
 
@@ -615,125 +627,194 @@ client.on(
       return;
     }
 
-    if (
-      newState.id === client.user.id
-    ) {
-      if (
-        newState.serverMute ||
-        newState.selfMute
-      ) {
-        try {
-          await guild.members.me.voice.setMute(false);
-        } catch (error) {
-          console.error(
-            'Error al desmutear el bot:',
-            error
-          );
-        }
-
-        const channel =
-          client.channels.cache.get(
-            player.textChannel
-          );
-
-        if (channel) {
-          try {
-            await channel.send({
-              components: [
-                createErrorContainer(
-                  'Fui muteado en el canal de voz y abandoné el canal.'
-                )
-              ],
-
-              flags:
-                MessageFlags.IsComponentsV2
-            });
-          } catch (error) {
-            console.error(
-              'Error al enviar el mensaje de mute:',
-              error
-            );
-          }
-        }
-
-        clearVoiceIdleTimer(
-          guild.id
-        );
-
-        trackHistory.delete(
-          guild.id
-        );
-
-        lastPlayedTracks.delete(
-          guild.id
-        );
-
-        navigationActions.delete(
-          guild.id
-        );
-
-        player.destroy();
-
-        return;
-      }
-
-      if (
-        newState.channelId !==
-        player.voiceChannel
-      ) {
-        const channel =
-          client.channels.cache.get(
-            player.textChannel
-          );
-
-        if (channel) {
-          try {
-            await channel.send({
-              components: [
-                createErrorContainer(
-                  newState.channelId
-                    ? 'Fui movido de canal de voz y abandoné el canal.'
-                    : 'Fui desconectado del canal de voz y abandoné la reproducción.'
-                )
-              ],
-
-              flags:
-                MessageFlags.IsComponentsV2
-            });
-          } catch (error) {
-            console.error(
-              'Error al enviar el mensaje de desconexión:',
-              error
-            );
-          }
-        }
-
-        clearVoiceIdleTimer(
-          guild.id
-        );
-
-        trackHistory.delete(
-          guild.id
-        );
-
-        lastPlayedTracks.delete(
-          guild.id
-        );
-
-        navigationActions.delete(
-          guild.id
-        );
-
-        player.destroy();
-
-        return;
-      }
-    }
-
     const botMember =
       guild.members.me;
 
-    if (!botMember?.voice?.channel) {
+    if (!botMember) {
+      return;
+    }
+
+    const wasConnected =
+      Boolean(oldState.channelId);
+
+    const isConnected =
+      Boolean(newState.channelId);
+
+    if (
+      oldState.id === client.user.id &&
+      wasConnected &&
+      newState.serverMute
+    ) {
+
+      try {
+        if (botMember.voice.serverMute) {
+          await botMember.voice.setMute(false);
+        }
+      } catch (error) {
+        console.error(
+          'Error al desmutear el bot:',
+          error
+        );
+      }
+
+      const channel =
+        client.channels.cache.get(
+          player.textChannel
+        );
+
+      if (channel) {
+        try {
+          await channel.send({
+            components: [
+              createErrorContainer(
+                'Fui silenciado y abandoné el canal de voz.'
+              )
+            ],
+
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        } catch (error) {
+          console.error(
+            'Error al enviar el mensaje de mute:',
+            error
+          );
+        }
+      }
+
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      trackHistory.delete(
+        guild.id
+      );
+
+      lastPlayedTracks.delete(
+        guild.id
+      );
+
+      navigationActions.delete(
+        guild.id
+      );
+
+      player.destroy();
+
+      return;
+    }
+
+    if (
+      oldState.id === client.user.id &&
+      wasConnected &&
+      isConnected &&
+      oldState.channelId !== newState.channelId
+    ) {
+
+      const channel =
+        client.channels.cache.get(
+          player.textChannel
+        );
+
+      if (channel) {
+        try {
+          await channel.send({
+            components: [
+              createErrorContainer(
+                'Fui movido de canal de voz y abandoné la conexión.'
+              )
+            ],
+
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        } catch (error) {
+          console.error(
+            'Error al enviar el mensaje de movimiento:',
+            error
+          );
+        }
+      }
+
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      trackHistory.delete(
+        guild.id
+      );
+
+      lastPlayedTracks.delete(
+        guild.id
+      );
+
+      navigationActions.delete(
+        guild.id
+      );
+
+      player.destroy();
+
+      return;
+    }
+
+    if (
+      oldState.id === client.user.id &&
+      wasConnected &&
+      !isConnected
+    ) {
+
+      const channel =
+        client.channels.cache.get(
+          player.textChannel
+        );
+
+      if (channel) {
+        try {
+          await channel.send({
+            components: [
+              createErrorContainer(
+                'Fui desconectado del canal de voz.'
+              )
+            ],
+
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        } catch (error) {
+          console.error(
+            'Error al enviar el mensaje de desconexión:',
+            error
+          );
+        }
+      }
+
+      clearVoiceIdleTimer(
+        guild.id
+      );
+
+      trackHistory.delete(
+        guild.id
+      );
+
+      lastPlayedTracks.delete(
+        guild.id
+      );
+
+      navigationActions.delete(
+        guild.id
+      );
+
+      player.destroy();
+
+      return;
+    }
+
+    if (
+      oldState.id === client.user.id
+    ) {
+      return;
+    }
+
+    if (!botMember.voice.channel) {
       clearVoiceIdleTimer(
         guild.id
       );
