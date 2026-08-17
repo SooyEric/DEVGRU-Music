@@ -1283,16 +1283,24 @@ client.on(
       }
 
       case 'stop': {
+        const guildId =
+          player.guildId;
+      
+        const channel =
+          client.channels.cache.get(
+            player.textChannel
+          );
+      
         clearVoiceIdleTimer(
-          player.guildId
+          guildId
         );
       
         skipMessages.delete(
-          player.guildId
+          guildId
         );
       
         finishedQueues.delete(
-          player.guildId
+          guildId
         );
       
         if (player.current) {
@@ -1317,28 +1325,45 @@ client.on(
         }
       
         trackHistory.delete(
-          player.guildId
+          guildId
         );
       
         lastPlayedTracks.delete(
-          player.guildId
+          guildId
         );
       
         navigationActions.delete(
-          player.guildId
+          guildId
         );
       
         playLocks.delete(
-          player.guildId
+          guildId
         );
       
-        finishedQueues.delete(guild.id);
+        if (channel) {
+          try {
+            await channel.send({
+              components: [
+                createErrorContainer(
+                  'Canción detenida, abandone el canal de voz.'
+                )
+              ],
+              flags:
+                MessageFlags.IsComponentsV2
+            });
+          } catch (error) {
+            console.error(
+              'Error al enviar el mensaje de canción detenida:',
+              error
+            );
+          }
+        }
       
         player.destroy();
       
         return interaction.reply({
           content:
-            'Canción detenida, abandoné el canal de voz.',
+            'Detenida',
           flags:
             MessageFlags.Ephemeral
         });
