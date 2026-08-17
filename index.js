@@ -33,7 +33,6 @@ const voiceIdleTimers = new Map();
 const playLocks = new Set();
 const protectedPlayers = new WeakSet();
 const finishedQueues = new Set();
-
 const playbackActions = new Map();
 
 function startExpressServer() {
@@ -347,7 +346,10 @@ function createNowPlayingContainer(
 
   let actionLine = '';
 
-  if (action?.type && action?.userId) {
+  if (
+    action?.type &&
+    action?.userId
+  ) {
     const actionLabels = {
       pause: 'Pausada por',
       restart: 'Reiniciada por',
@@ -402,9 +404,9 @@ function createNowPlayingContainer(
       new ActionRowBuilder()
         .addComponents(
           new ButtonBuilder()
-            .setCustomId('back')
+            .setCustomId('restart')
             .setEmoji(
-              '<:left:1538544846459899955>'
+              '<:reset:1539037348254449705>'
             )
             .setStyle(
               ButtonStyle.Secondary
@@ -431,16 +433,6 @@ function createNowPlayingContainer(
             .setCustomId('skip')
             .setEmoji(
               '<:right:1538541644695998545>'
-            )
-            .setStyle(
-              ButtonStyle.Secondary
-            )
-            .setDisabled(disabled),
-
-          new ButtonBuilder()
-            .setCustomId('restart')
-            .setEmoji(
-              '<:reset:1539037348254449705>'
             )
             .setStyle(
               ButtonStyle.Secondary
@@ -1166,19 +1158,6 @@ client.on(
     switch (
       interaction.customId
     ) {
-
-      case 'back': {
-        return interaction.reply({
-          components: [
-            createErrorContainer(
-              'Esta función está temporalmente deshabilitada.'
-            )
-          ],
-          flags:
-            MessageFlags.IsComponentsV2 |
-            MessageFlags.Ephemeral
-        });
-      }
 
       case 'pause':
       case 'resume': {
