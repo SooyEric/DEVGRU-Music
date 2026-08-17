@@ -30,6 +30,7 @@ const lastPlayedTracks = new Map();
 const navigationActions = new Set();
 const voiceIdleTimers = new Map();
 const playLocks = new Set();
+const protectedPlayers = new WeakSet();
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -158,8 +159,34 @@ riffy.on(
   }
 );
 
+function protectPlayer(player) {
+  if (!player || protectedPlayers.has(player)) {
+    return player;
+  }
+
+  const originalPlay =
+    player.play.bind(player);
+
+  player.play = async function () {
+    if (
+      !this.queue ||
+      this.queue.length === 0
+    ) {
+      return this;
+    }
+
+    return originalPlay();
+  };
+
+  protectedPlayers.add(player);
+
+  return player;
+}
+
 async function startPlayer(player) {
   if (!player) return false;
+
+  protectPlayer(player);
 
   const guildId =
     player.guildId;
@@ -997,6 +1024,8 @@ client.on(
       });
     }
 
+    protectPlayer(player);
+
     const member =
       interaction.member;
 
@@ -1058,6 +1087,8 @@ client.on(
               MessageFlags.Ephemeral
           });
 
+          await startPlayer(player);
+
           return;
         }
 
@@ -1084,11 +1115,15 @@ client.on(
 
         player.stop();
 
-        return interaction.reply({
+        await interaction.reply({
           content: 'Reiniciada',
           flags:
             MessageFlags.Ephemeral
         });
+
+        await startPlayer(player);
+
+        return;
       }
 
       case 'pause':
@@ -1348,7 +1383,11 @@ if (config.enablePrefix) {
                 message.channel.id,
               deaf: true
             });
+
+          protectPlayer(player);
         } else {
+          protectPlayer(player);
+
           player.textChannel =
             message.channel.id;
 
@@ -1513,7 +1552,7 @@ client.on(
 );
 
 client.once(
-  'ready',
+  'clientReady',
   async () => {
     console.log(
       `${config.emojis.success} Sesión iniciada como ${client.user.tag}`
