@@ -32,6 +32,7 @@ const navigationActions = new Set();
 const voiceIdleTimers = new Map();
 const playLocks = new Set();
 const protectedPlayers = new WeakSet();
+const finishedQueues = new Set();
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -603,6 +604,8 @@ function startVoiceIdleTimer(player) {
         navigationActions.delete(guildId);
         playLocks.delete(guildId);
 
+        finishedQueues.delete(guild.id);
+
         player.destroy();
       },
       30000
@@ -694,6 +697,8 @@ client.on(
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
 
+      finishedQueues.delete(guild.id);
+
       player.destroy();
 
       return;
@@ -735,6 +740,8 @@ client.on(
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
 
+      finishedQueues.delete(guild.id);
+
       player.destroy();
 
       return;
@@ -774,6 +781,8 @@ client.on(
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+
+      finishedQueues.delete(guild.id);
 
       player.destroy();
 
@@ -816,12 +825,16 @@ client.on(
 riffy.on(
   'trackStart',
   async (player, track) => {
-    clearVoiceIdleTimer(
-      player.guildId
-    );
-
-    const guildId =
+        const guildId =
       player.guildId;
+
+    if (finishedQueues.has(guildId)) {
+      return;
+    }
+
+    clearVoiceIdleTimer(
+      guildId
+    );
 
     const previousSkipMessage =
       skipMessages.get(guildId);
@@ -918,6 +931,8 @@ riffy.on(
 
     playLocks.delete(guildId);
 
+    finishedQueues.add(guildId);
+
     const channel =
       client.channels.cache.get(
         player.textChannel
@@ -933,16 +948,17 @@ riffy.on(
       player.current
     ) {
       try {
-        const disabledContainer =
+        const finishedContainer =
           createNowPlayingContainer(
             player,
             player.current,
-            true
+            true,
+            'Finalizada'
           );
 
         await message.edit({
           components: [
-            disabledContainer
+            finishedContainer
           ],
           flags:
             MessageFlags.IsPersistent |
@@ -950,7 +966,7 @@ riffy.on(
         });
       } catch (error) {
         console.error(
-          'Error al desactivar los botones:',
+          'Error al marcar la reproducción como finalizada:',
           error
         );
       }
@@ -1192,7 +1208,11 @@ client.on(
           const updatedContainer =
             createNowPlayingContainer(
               player,
-              player.current
+              player.current,
+              false,
+              shouldPause
+                ? 'Pausado'
+                : 'Reproduciendo'
             );
 
           await message.edit({
@@ -1266,11 +1286,15 @@ client.on(
         clearVoiceIdleTimer(
           player.guildId
         );
-
+      
         skipMessages.delete(
           player.guildId
         );
-
+      
+        finishedQueues.delete(
+          player.guildId
+        );
+      
         if (player.current) {
           const disabledContainer =
             createNowPlayingContainer(
@@ -1279,7 +1303,7 @@ client.on(
               true,
               'Detenido'
             );
-
+      
           await interaction.message
             .edit({
               components: [
@@ -1291,27 +1315,30 @@ client.on(
             })
             .catch(() => {});
         }
-
+      
         trackHistory.delete(
           player.guildId
         );
-
+      
         lastPlayedTracks.delete(
           player.guildId
         );
-
+      
         navigationActions.delete(
           player.guildId
         );
-
+      
         playLocks.delete(
           player.guildId
         );
-
+      
+        finishedQueues.delete(guild.id);
+      
         player.destroy();
-
+      
         return interaction.reply({
-          content: 'Detenida',
+          content:
+            'Canción detenida, abandoné el canal de voz.',
           flags:
             MessageFlags.Ephemeral
         });
@@ -1463,6 +1490,10 @@ if (config.enablePrefix) {
         }
 
         clearVoiceIdleTimer(
+          message.guild.id
+        );
+        
+        finishedQueues.delete(
           message.guild.id
         );
 
