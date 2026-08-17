@@ -34,6 +34,8 @@ const playLocks = new Set();
 const protectedPlayers = new WeakSet();
 const finishedQueues = new Set();
 
+const playbackActions = new Map();
+
 function startExpressServer() {
   if (!config.express.enabled) return;
 
@@ -338,6 +340,29 @@ function createNowPlayingContainer(
   const isPaused =
     player.paused;
 
+  const action =
+    playbackActions.get(
+      player.guildId
+    );
+
+  let actionLine = '';
+
+  if (action?.type && action?.userId) {
+    const actionLabels = {
+      pause: 'Pausada por',
+      restart: 'Reiniciada por',
+      stop: 'Detenida por'
+    };
+
+    const label =
+      actionLabels[action.type];
+
+    if (label) {
+      actionLine =
+        `${label} <@${action.userId}>\n`;
+    }
+  }
+
   return new ContainerBuilder()
     .setAccentColor(0xffaf1a)
     .addSectionComponents(
@@ -362,6 +387,7 @@ function createNowPlayingContainer(
       new TextDisplayBuilder()
         .setContent(
           `Solicitada por <@${info.requester || '0'}>\n` +
+          actionLine +
           `Duración: \`${formatTime(info.length || 0)}\``
         )
     )
@@ -405,6 +431,16 @@ function createNowPlayingContainer(
             .setCustomId('skip')
             .setEmoji(
               '<:right:1538541644695998545>'
+            )
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+            .setDisabled(disabled),
+
+          new ButtonBuilder()
+            .setCustomId('restart')
+            .setEmoji(
+              '<:reset:1539037348254449705>'
             )
             .setStyle(
               ButtonStyle.Secondary
@@ -603,6 +639,7 @@ function startVoiceIdleTimer(player) {
         lastPlayedTracks.delete(guildId);
         navigationActions.delete(guildId);
         playLocks.delete(guildId);
+        playbackActions.delete(guildId);
 
         finishedQueues.delete(guild.id);
 
@@ -696,6 +733,7 @@ client.on(
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      playbackActions.delete(guild.id);
 
       finishedQueues.delete(guild.id);
 
@@ -739,6 +777,7 @@ client.on(
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      playbackActions.delete(guild.id);
 
       finishedQueues.delete(guild.id);
 
@@ -781,6 +820,7 @@ client.on(
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      playbackActions.delete(guild.id);
 
       finishedQueues.delete(guild.id);
 
@@ -825,7 +865,7 @@ client.on(
 riffy.on(
   'trackStart',
   async (player, track) => {
-        const guildId =
+    const guildId =
       player.guildId;
 
     if (finishedQueues.has(guildId)) {
@@ -876,6 +916,10 @@ riffy.on(
     );
 
     navigationActions.delete(
+      guildId
+    );
+
+    playbackActions.delete(
       guildId
     );
 
@@ -1006,6 +1050,7 @@ riffy.on(
     trackHistory.delete(guildId);
     lastPlayedTracks.delete(guildId);
     navigationActions.delete(guildId);
+    playbackActions.delete(guildId);
 
     const guild =
       client.guilds.cache.get(guildId);
@@ -1071,21 +1116,21 @@ client.on(
           MessageFlags.Ephemeral
       });
     }
-    
+
     const currentTrack =
       player.current;
 
     const requesterId =
       currentTrack?.info?.requester;
-    
+
     const isRequester =
       requesterId === interaction.user.id;
-    
+
     const isAdministrator =
       interaction.member.permissions.has(
         'Administrator'
       );
-    
+
     if (
       !isRequester &&
       !isAdministrator
@@ -1121,69 +1166,18 @@ client.on(
     switch (
       interaction.customId
     ) {
+
       case 'back': {
-        const history =
-          trackHistory.get(
-            player.guildId
-          ) || [];
-
-        if (history.length > 0) {
-          const previousTrack =
-            history.pop();
-
-          player.queue.unshift(
-            previousTrack
-          );
-
-          navigationActions.add(
-            player.guildId
-          );
-
-          player.stop();
-
-          await interaction.reply({
-            content: 'Anterior',
-            flags:
-              MessageFlags.Ephemeral
-          });
-
-          await startPlayer(player);
-
-          return;
-        }
-
-        if (!player.current) {
-          return interaction.reply({
-            components: [
-              createErrorContainer(
-                'No hay ninguna canción reproduciéndose.'
-              )
-            ],
-            flags:
-              MessageFlags.IsComponentsV2 |
-              MessageFlags.Ephemeral
-          });
-        }
-
-        player.queue.unshift(
-          player.current
-        );
-
-        navigationActions.add(
-          player.guildId
-        );
-
-        player.stop();
-
-        await interaction.reply({
-          content: 'Reiniciada',
+        return interaction.reply({
+          components: [
+            createErrorContainer(
+              'Esta función está temporalmente deshabilitada.'
+            )
+          ],
           flags:
+            MessageFlags.IsComponentsV2 |
             MessageFlags.Ephemeral
         });
-
-        await startPlayer(player);
-
-        return;
       }
 
       case 'pause':
@@ -1200,6 +1194,21 @@ client.on(
         await player.pause(
           shouldPause
         );
+
+        if (shouldPause) {
+          playbackActions.set(
+            player.guildId,
+            {
+              type: 'pause',
+              userId:
+                interaction.user.id
+            }
+          );
+        } else {
+          playbackActions.delete(
+            player.guildId
+          );
+        }
 
         if (
           message &&
@@ -1233,6 +1242,84 @@ client.on(
           flags:
             MessageFlags.Ephemeral
         });
+      }
+
+      case 'restart': {
+        if (!player.current) {
+          return interaction.reply({
+            components: [
+              createErrorContainer(
+                'No hay ninguna canción reproduciéndose.'
+              )
+            ],
+            flags:
+              MessageFlags.IsComponentsV2 |
+              MessageFlags.Ephemeral
+          });
+        }
+
+        const message =
+          nowPlayingMessages.get(
+            player.guildId
+          );
+
+        try {
+          await player.seek(0);
+
+          playbackActions.set(
+            player.guildId,
+            {
+              type: 'restart',
+              userId:
+                interaction.user.id
+            }
+          );
+
+          if (
+            message &&
+            player.current
+          ) {
+            const updatedContainer =
+              createNowPlayingContainer(
+                player,
+                player.current,
+                false,
+                'Reproduciendo'
+              );
+
+            await message.edit({
+              components: [
+                updatedContainer
+              ],
+              flags:
+                MessageFlags.IsPersistent |
+                MessageFlags.IsComponentsV2
+            }).catch(() => {});
+          }
+
+          return interaction.reply({
+            content:
+              'Reiniciada',
+            flags:
+              MessageFlags.Ephemeral
+          });
+        } catch (error) {
+          console.error(
+            'Error al reiniciar la canción:',
+            error
+          );
+
+          return interaction.reply({
+            components: [
+              createErrorContainer(
+                'No se pudo reiniciar la canción.'
+              )
+            ],
+            flags:
+              MessageFlags.IsComponentsV2 |
+              MessageFlags.Ephemeral
+          });
+        }
       }
 
       case 'skip': {
@@ -1273,10 +1360,15 @@ client.on(
           interaction.message
         );
 
+        playbackActions.delete(
+          player.guildId
+        );
+
         player.stop();
 
         return interaction.reply({
-          content: 'Siguiente',
+          content:
+            'Siguiente',
           flags:
             MessageFlags.Ephemeral
         });
@@ -1285,24 +1377,33 @@ client.on(
       case 'stop': {
         const guildId =
           player.guildId;
-      
+
         const channel =
           client.channels.cache.get(
             player.textChannel
           );
-      
+
         clearVoiceIdleTimer(
           guildId
         );
-      
+
         skipMessages.delete(
           guildId
         );
-      
+
         finishedQueues.delete(
           guildId
         );
-      
+
+        playbackActions.set(
+          guildId,
+          {
+            type: 'stop',
+            userId:
+              interaction.user.id
+          }
+        );
+
         if (player.current) {
           const disabledContainer =
             createNowPlayingContainer(
@@ -1311,7 +1412,7 @@ client.on(
               true,
               'Detenido'
             );
-      
+
           await interaction.message
             .edit({
               components: [
@@ -1323,29 +1424,29 @@ client.on(
             })
             .catch(() => {});
         }
-      
+
         trackHistory.delete(
           guildId
         );
-      
+
         lastPlayedTracks.delete(
           guildId
         );
-      
+
         navigationActions.delete(
           guildId
         );
-      
+
         playLocks.delete(
           guildId
         );
-      
+
         if (channel) {
           try {
             await channel.send({
               components: [
                 createErrorContainer(
-                  'Canción detenida, abandone el canal de voz.'
+                  'Canción detenida, abandoné el canal de voz.'
                 )
               ],
               flags:
@@ -1358,9 +1459,9 @@ client.on(
             );
           }
         }
-      
+
         player.destroy();
-      
+
         return interaction.reply({
           content:
             'Detenida',
@@ -1517,7 +1618,7 @@ if (config.enablePrefix) {
         clearVoiceIdleTimer(
           message.guild.id
         );
-        
+
         finishedQueues.delete(
           message.guild.id
         );
