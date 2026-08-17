@@ -31,7 +31,6 @@ const navigationActions = new Set();
 const voiceIdleTimers = new Map();
 const playLocks = new Set();
 const protectedPlayers = new WeakSet();
-const queueViews = new Set();
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -325,8 +324,7 @@ function createErrorContainer(description) {
 function createNowPlayingContainer(
   player,
   track,
-  disabled = false,
-  title = 'Reproduciendo'
+  disabled = false
 ) {
   const info =
     track?.info ?? {};
@@ -344,7 +342,7 @@ function createNowPlayingContainer(
         .addTextDisplayComponents(
           new TextDisplayBuilder()
             .setContent(
-              `## <:songa:1538552887494443098> ${title}\n` +
+              `## <:songa:1538552887494443098> Reproduciendo\n` +
               `\`${info.title || 'Título desconocido'}\``
             )
         )
@@ -528,61 +526,6 @@ function createQueueContainer(player) {
           SeparatorSpacingSize.Small
         )
         .setDivider(true)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('back')
-            .setEmoji(
-              '<:left:1538544846459899955>'
-            )
-            .setStyle(
-              ButtonStyle.Secondary
-            ),
-
-          new ButtonBuilder()
-            .setCustomId(
-              player.paused
-                ? 'resume'
-                : 'pause'
-            )
-            .setEmoji(
-              player.paused
-                ? '<:play:1538541584167997503>'
-                : '<:pause:1538541612353855489>'
-            )
-            .setStyle(
-              ButtonStyle.Secondary
-            ),
-
-          new ButtonBuilder()
-            .setCustomId('skip')
-            .setEmoji(
-              '<:right:1538541644695998545>'
-            )
-            .setStyle(
-              ButtonStyle.Secondary
-            ),
-
-          new ButtonBuilder()
-            .setCustomId('queue')
-            .setEmoji(
-              '<:folder:1538542808648908891>'
-            )
-            .setStyle(
-              ButtonStyle.Secondary
-            ),
-
-          new ButtonBuilder()
-            .setCustomId('stop')
-            .setEmoji(
-              '<:cancel:1538544866659672144>'
-            )
-            .setStyle(
-              ButtonStyle.Danger
-            )
-        )
     );
 }
 
@@ -653,19 +596,6 @@ function startVoiceIdleTimer(player) {
           }
         }
 
-        const message =
-          nowPlayingMessages.get(
-            guildId
-          );
-
-        if (message) {
-          try {
-            await message.delete();
-          } catch {}
-        }
-
-        nowPlayingMessages.delete(guildId);
-        queueViews.delete(guildId);
         trackHistory.delete(guildId);
         lastPlayedTracks.delete(guildId);
         navigationActions.delete(guildId);
@@ -756,19 +686,6 @@ client.on(
         }
       }
 
-      const message =
-        nowPlayingMessages.get(
-          guild.id
-        );
-
-      if (message) {
-        try {
-          await message.delete();
-        } catch {}
-      }
-
-      nowPlayingMessages.delete(guild.id);
-      queueViews.delete(guild.id);
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
@@ -810,19 +727,6 @@ client.on(
         }
       }
 
-      const message =
-        nowPlayingMessages.get(
-          guild.id
-        );
-
-      if (message) {
-        try {
-          await message.delete();
-        } catch {}
-      }
-
-      nowPlayingMessages.delete(guild.id);
-      queueViews.delete(guild.id);
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
@@ -863,19 +767,6 @@ client.on(
         }
       }
 
-      const message =
-        nowPlayingMessages.get(
-          guild.id
-        );
-
-      if (message) {
-        try {
-          await message.delete();
-        } catch {}
-      }
-
-      nowPlayingMessages.delete(guild.id);
-      queueViews.delete(guild.id);
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
@@ -968,29 +859,12 @@ riffy.on(
       guildId
     );
 
-    queueViews.delete(guildId);
-
     const channel =
       client.channels.cache.get(
         player.textChannel
       );
 
     if (!channel) return;
-
-    const oldMessage =
-      nowPlayingMessages.get(
-        guildId
-      );
-
-    if (oldMessage) {
-      try {
-        await oldMessage.delete();
-      } catch {}
-
-      nowPlayingMessages.delete(
-        guildId
-      );
-    }
 
     const container =
       createNowPlayingContainer(
@@ -1029,7 +903,11 @@ riffy.on(
       player.guildId;
 
     playLocks.delete(guildId);
-    queueViews.delete(guildId);
+
+    const channel =
+      client.channels.cache.get(
+        player.textChannel
+      );
 
     const message =
       nowPlayingMessages.get(
@@ -1045,8 +923,7 @@ riffy.on(
           createNowPlayingContainer(
             player,
             player.current,
-            true,
-            'Pausado'
+            true
           );
 
         await message.edit({
@@ -1059,7 +936,38 @@ riffy.on(
         });
       } catch (error) {
         console.error(
-          'Error al actualizar el mensaje al finalizar:',
+          'Error al desactivar los botones:',
+          error
+        );
+      }
+
+      nowPlayingMessages.delete(
+        guildId
+      );
+    }
+
+    if (channel) {
+      const container =
+        new ContainerBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder()
+              .setContent(
+                '<:info:1538323825542963270> Fila de reproducción finalizada.'
+              )
+          );
+
+      try {
+        await channel.send({
+          components: [
+            container
+          ],
+          flags:
+            MessageFlags.IsPersistent |
+            MessageFlags.IsComponentsV2
+        });
+      } catch (error) {
+        console.error(
+          'Error al enviar el mensaje de finalización:',
           error
         );
       }
@@ -1150,50 +1058,28 @@ client.on(
       });
     }
 
-    const guildId =
-      player.guildId;
-
     switch (
       interaction.customId
     ) {
       case 'back': {
         const history =
           trackHistory.get(
-            guildId
+            player.guildId
           ) || [];
 
         if (history.length > 0) {
           const previousTrack =
             history.pop();
 
-          if (player.current) {
-            player.queue.unshift(
-              player.current
-            );
-          }
-
           player.queue.unshift(
             previousTrack
           );
 
           navigationActions.add(
-            guildId
+            player.guildId
           );
 
-          const oldMessage =
-            nowPlayingMessages.get(
-              guildId
-            );
-
-          if (oldMessage) {
-            try {
-              await oldMessage.delete();
-            } catch {}
-
-            nowPlayingMessages.delete(
-              guildId
-            );
-          }
+          player.stop();
 
           await interaction.reply({
             content: 'Anterior',
@@ -1201,11 +1087,7 @@ client.on(
               MessageFlags.Ephemeral
           });
 
-          player.stop();
-
-          await startPlayer(
-            player
-          );
+          await startPlayer(player);
 
           return;
         }
@@ -1228,8 +1110,10 @@ client.on(
         );
 
         navigationActions.add(
-          guildId
+          player.guildId
         );
+
+        player.stop();
 
         await interaction.reply({
           content: 'Reiniciada',
@@ -1237,11 +1121,7 @@ client.on(
             MessageFlags.Ephemeral
         });
 
-        player.stop();
-
-        await startPlayer(
-          player
-        );
+        await startPlayer(player);
 
         return;
       }
@@ -1250,7 +1130,7 @@ client.on(
       case 'resume': {
         const message =
           nowPlayingMessages.get(
-            guildId
+            player.guildId
           );
 
         const shouldPause =
@@ -1259,10 +1139,6 @@ client.on(
 
         await player.pause(
           shouldPause
-        );
-
-        queueViews.delete(
-          guildId
         );
 
         if (
@@ -1309,83 +1185,72 @@ client.on(
           });
         }
 
-        const oldMessage =
-          nowPlayingMessages.get(
-            guildId
+        const disabledContainer =
+          createNowPlayingContainer(
+            player,
+            player.current,
+            true
           );
 
-        if (oldMessage) {
-          try {
-            await oldMessage.delete();
-          } catch {}
-
-          nowPlayingMessages.delete(
-            guildId
-          );
-        }
-
-        navigationActions.delete(
-          guildId
-        );
-
-        await interaction.reply({
-          content: 'Siguiente',
-          flags:
-            MessageFlags.Ephemeral
-        });
-
-        player.stop();
-
-        return;
-      }
-
-      case 'stop': {
-        clearVoiceIdleTimer(
-          guildId
-        );
-
-        queueViews.delete(
-          guildId
-        );
-
-        const message =
-          nowPlayingMessages.get(
-            guildId
-          );
-
-        if (message && player.current) {
-          const disabledContainer =
-            createNowPlayingContainer(
-              player,
-              player.current,
-              true,
-              'Pausado'
-            );
-
-          await message.edit({
+        await interaction.message
+          .edit({
             components: [
               disabledContainer
             ],
             flags:
               MessageFlags.IsPersistent |
               MessageFlags.IsComponentsV2
-          }).catch(() => {});
+          })
+          .catch(() => {});
+
+        player.stop();
+
+        return interaction.reply({
+          content: 'Siguiente',
+          flags:
+            MessageFlags.Ephemeral
+        });
+      }
+
+      case 'stop': {
+        clearVoiceIdleTimer(
+          player.guildId
+        );
+
+        if (player.current) {
+          const disabledContainer =
+            createNowPlayingContainer(
+              player,
+              player.current,
+              true
+            );
+
+          await interaction.message
+            .edit({
+              components: [
+                disabledContainer
+              ],
+              flags:
+                MessageFlags.IsPersistent |
+                MessageFlags.IsComponentsV2
+            })
+            .catch(() => {});
         }
 
         trackHistory.delete(
-          guildId
+          player.guildId
         );
 
         lastPlayedTracks.delete(
-          guildId
+          player.guildId
         );
 
         navigationActions.delete(
-          guildId
+          player.guildId
         );
 
         playLocks.delete(
-          guildId
+          player.guildId
         );
 
         player.destroy();
@@ -1398,68 +1263,17 @@ client.on(
       }
 
       case 'queue': {
-        const message =
-          nowPlayingMessages.get(
-            guildId
+        const queueContainer =
+          createQueueContainer(
+            player
           );
-
-        if (!message) {
-          return interaction.reply({
-            components: [
-              createErrorContainer(
-                'No existe un mensaje de reproducción.'
-              )
-            ],
-            flags:
-              MessageFlags.IsComponentsV2 |
-              MessageFlags.Ephemeral
-          });
-        }
-
-        if (queueViews.has(guildId)) {
-          queueViews.delete(
-            guildId
-          );
-
-          if (player.current) {
-            const nowPlayingContainer =
-              createNowPlayingContainer(
-                player,
-                player.current
-              );
-
-            await message.edit({
-              components: [
-                nowPlayingContainer
-              ],
-              flags:
-                MessageFlags.IsPersistent |
-                MessageFlags.IsComponentsV2
-            }).catch(() => {});
-          }
-        } else {
-          queueViews.add(
-            guildId
-          );
-
-          const queueContainer =
-            createQueueContainer(
-              player
-            );
-
-          await message.edit({
-            components: [
-              queueContainer
-            ],
-            flags:
-              MessageFlags.IsPersistent |
-              MessageFlags.IsComponentsV2
-          }).catch(() => {});
-        }
 
         return interaction.reply({
-          content: 'Cola actualizada',
+          components: [
+            queueContainer
+          ],
           flags:
+            MessageFlags.IsComponentsV2 |
             MessageFlags.Ephemeral
         });
       }
