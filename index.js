@@ -783,6 +783,7 @@ if (
 ) {
   if (
     destroyReason === 'manualStop'
+    destroyReason === 'voiceDisconnect'
   ) {
     playerDestroyReasons.delete(
       guild.id
