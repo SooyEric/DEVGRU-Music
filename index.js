@@ -35,6 +35,7 @@ const protectedPlayers = new WeakSet();
 const finishedQueues = new Set();
 const playbackActions = new Map();
 const playerDestroyReasons = new Map();
+const startingPlayers = new Set();
 
 function startExpressServer() {
   if (!config.express.enabled) return;
@@ -174,7 +175,7 @@ function protectPlayer(player) {
   player.play = async function () {
     if (
       !this.queue ||
-      this.queue.length === 0
+      this.queue.size === 0
     ) {
       return this;
     }
@@ -192,10 +193,12 @@ async function startPlayer(player) {
 
   protectPlayer(player);
 
-  const guildId =
-    player.guildId;
+  const guildId = player.guildId;
 
-  if (playLocks.has(guildId)) {
+  if (
+    playLocks.has(guildId) ||
+    startingPlayers.has(guildId)
+  ) {
     return false;
   }
 
@@ -203,19 +206,24 @@ async function startPlayer(player) {
     player.playing ||
     player.paused ||
     !player.queue ||
-    player.queue.length === 0
+    player.queue.size === 0
   ) {
     return false;
   }
 
   playLocks.add(guildId);
+  startingPlayers.add(guildId);
 
   try {
+    await new Promise(resolve =>
+      setTimeout(resolve, 100)
+    );
+
     if (
-      !player.queue ||
-      player.queue.length === 0 ||
       player.playing ||
-      player.paused
+      player.paused ||
+      !player.queue ||
+      player.queue.size === 0
     ) {
       return false;
     }
@@ -232,6 +240,7 @@ async function startPlayer(player) {
     return false;
   } finally {
     playLocks.delete(guildId);
+    startingPlayers.delete(guildId);
   }
 }
 
@@ -587,7 +596,7 @@ function createQueueContainer(player) {
 
   let description = '';
 
-  if (queue.length > 0) {
+  if (queue.size > 0) {
     description +=
       `<:song:1538552770200600706> **Siguiente:**\n`;
 
@@ -607,7 +616,7 @@ function createQueueContainer(player) {
     );
 
     description +=
-      `\n${queue.length} cancion(es) en fila de reproducción.`;
+      `\n${queue.size} cancion(es) en fila de reproducción.`;
   } else {
     description =
       'La fila de reproducción está vacía.';
@@ -621,7 +630,7 @@ function createQueueContainer(player) {
           new TextDisplayBuilder()
             .setContent(
               `## ${
-                queue.length > 0
+                queue.size > 0
                   ? '<:foldera:1538552555649507409>'
                   : '<:songa:1538552887494443098>'
               } Siguiente(s)\n\n${description}`
@@ -717,6 +726,7 @@ function startVoiceIdleTimer(player) {
         lastPlayedTracks.delete(guildId);
         navigationActions.delete(guildId);
         playLocks.delete(guildId);
+        startingPlayers.delete(guildId);
         playbackActions.delete(guildId);
 
         finishedQueues.delete(guild.id);
@@ -906,6 +916,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      startingPlayers.delete(guildId);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
@@ -959,6 +970,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      startingPlayers.delete(guildId);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
@@ -1011,6 +1023,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
+      startingPlayers.delete(guildId);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
@@ -1923,9 +1936,13 @@ if (config.enablePrefix) {
           });
         }
 
-        await startPlayer(
-          player
-        );
+if (
+  !player.playing &&
+  !player.paused &&
+  !startingPlayers.has(message.guild.id)
+) {
+  await startPlayer(player);
+}
       } catch (error) {
         console.error(
           'Error en el comando de reproducción:',
