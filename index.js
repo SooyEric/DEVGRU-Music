@@ -505,6 +505,49 @@ async function markNowPlayingAsStopped(player) {
   }
 }
 
+async function markNowPlayingAsStoppedWithoutPlayer(guildId) {
+  const message =
+    nowPlayingMessages.get(guildId);
+
+  const track =
+    lastPlayedTracks.get(guildId);
+
+  if (!message || !track) return;
+
+  const fakePlayer = {
+    guildId,
+    paused: false
+  };
+
+  const stoppedContainer =
+    createNowPlayingContainer(
+      fakePlayer,
+      track,
+      true,
+      'Detenido'
+    );
+
+  try {
+    await message.edit({
+      components: [
+        stoppedContainer
+      ],
+      flags:
+        MessageFlags.IsPersistent |
+        MessageFlags.IsComponentsV2
+    });
+
+    nowPlayingMessages.delete(
+      guildId
+    );
+  } catch (error) {
+    console.error(
+      'Error al marcar la reproducción como detenida sin player:',
+      error
+    );
+  }
+}
+
 function createSimpleContainerNoButtons(
   title,
   description,
@@ -715,8 +758,6 @@ client.on(
     const player =
       riffy.players.get(guild.id);
 
-    if (!player) return;
-
     const botMember =
       guild.members.me;
 
@@ -727,6 +768,77 @@ client.on(
 
     const isConnected =
       Boolean(newState.channelId);
+
+    if (
+      oldState.id === client.user.id &&
+      wasConnected &&
+      !isConnected &&
+      !player
+    ) {
+      const message =
+        nowPlayingMessages.get(
+          guild.id
+        );
+    
+      await markNowPlayingAsStoppedWithoutPlayer(
+        guild.id
+      );
+    
+      if (message) {
+        try {
+          await message.channel.send({
+            components: [
+              createErrorContainer(
+                'Fui desconectado del canal de voz.'
+              )
+            ],
+            flags:
+              MessageFlags.IsComponentsV2
+          });
+        } catch (error) {
+          console.error(
+            'Error al enviar el mensaje de desconexión:',
+            error
+          );
+        }
+      }
+    
+      clearVoiceIdleTimer(
+        guild.id
+      );
+    
+      trackHistory.delete(
+        guild.id
+      );
+    
+      lastPlayedTracks.delete(
+        guild.id
+      );
+    
+      navigationActions.delete(
+        guild.id
+      );
+    
+      playLocks.delete(
+        guild.id
+      );
+    
+      playbackActions.delete(
+        guild.id
+      );
+    
+      finishedQueues.delete(
+        guild.id
+      );
+    
+      playerDestroyReasons.delete(
+        guild.id
+      );
+    
+      return;
+    }
+
+    if (!player) return;
 
     if (
       oldState.id === client.user.id &&
