@@ -463,6 +463,48 @@ function createNowPlayingContainer(
     );
 }
 
+async function markNowPlayingAsStopped(player) {
+  if (!player?.current) return;
+
+  const guildId =
+    player.guildId;
+
+  const message =
+    nowPlayingMessages.get(
+      guildId
+    );
+
+  if (!message) return;
+
+  const stoppedContainer =
+    createNowPlayingContainer(
+      player,
+      player.current,
+      true,
+      'Detenido'
+    );
+
+  try {
+    await message.edit({
+      components: [
+        stoppedContainer
+      ],
+      flags:
+        MessageFlags.IsPersistent |
+        MessageFlags.IsComponentsV2
+    });
+
+    nowPlayingMessages.delete(
+      guildId
+    );
+  } catch (error) {
+    console.error(
+      'Error al marcar la reproducción como detenida:',
+      error
+    );
+  }
+}
+
 function createSimpleContainerNoButtons(
   title,
   description,
@@ -726,22 +768,26 @@ client.on(
         }
       }
 
+      await markNowPlayingAsStopped(
+        player
+      );
+      
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
       playbackActions.delete(guild.id);
-
+      
       finishedQueues.delete(guild.id);
-
+      
       playerDestroyReasons.set(
         guild.id,
         'voiceDisconnect'
       );
       
       player.destroy();
-
+      
       return;
     }
 
@@ -775,22 +821,26 @@ client.on(
         }
       }
 
+      await markNowPlayingAsStopped(
+        player
+      );
+      
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
       playbackActions.delete(guild.id);
-
+      
       finishedQueues.delete(guild.id);
       
       playerDestroyReasons.set(
         guild.id,
         'voiceDisconnect'
       );
-
+      
       player.destroy();
-
+      
       return;
     }
 
@@ -823,22 +873,26 @@ client.on(
         }
       }
 
+      await markNowPlayingAsStopped(
+        player
+      );
+      
       clearVoiceIdleTimer(guild.id);
       trackHistory.delete(guild.id);
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
       playbackActions.delete(guild.id);
-
+      
       finishedQueues.delete(guild.id);
-
+      
       playerDestroyReasons.set(
         guild.id,
         'voiceDisconnect'
       );
-
+      
       player.destroy();
-
+      
       return;
     }
 
