@@ -757,6 +757,9 @@ client.on(
 
     const player =
       riffy.players.get(guild.id);
+      
+    const destroyReason =
+      playerDestroyReasons.get(guild.id);
 
     const botMember =
       guild.members.me;
@@ -769,74 +772,88 @@ client.on(
     const isConnected =
       Boolean(newState.channelId);
 
-    if (
-      oldState.id === client.user.id &&
-      wasConnected &&
-      !isConnected &&
-      !player
-    ) {
-      const message =
-        nowPlayingMessages.get(
-          guild.id
-        );
-    
-      await markNowPlayingAsStoppedWithoutPlayer(
-        guild.id
+if (
+  oldState.id === client.user.id &&
+  wasConnected &&
+  !isConnected &&
+  !player
+) {
+  if (
+    destroyReason === 'manualStop'
+  ) {
+    playerDestroyReasons.delete(
+      guild.id
+    );
+
+    clearVoiceIdleTimer(
+      guild.id
+    );
+
+    return;
+  }
+
+  const message =
+    nowPlayingMessages.get(
+      guild.id
+    );
+
+  await markNowPlayingAsStoppedWithoutPlayer(
+    guild.id
+  );
+
+  if (message) {
+    try {
+      await message.channel.send({
+        components: [
+          createErrorContainer(
+            'Fui desconectado del canal de voz.'
+          )
+        ],
+        flags:
+          MessageFlags.IsComponentsV2
+      });
+    } catch (error) {
+      console.error(
+        'Error al enviar el mensaje de desconexión:',
+        error
       );
-    
-      if (message) {
-        try {
-          await message.channel.send({
-            components: [
-              createErrorContainer(
-                'Fui desconectado del canal de voz.'
-              )
-            ],
-            flags:
-              MessageFlags.IsComponentsV2
-          });
-        } catch (error) {
-          console.error(
-            'Error al enviar el mensaje de desconexión:',
-            error
-          );
-        }
-      }
-    
-      clearVoiceIdleTimer(
-        guild.id
-      );
-    
-      trackHistory.delete(
-        guild.id
-      );
-    
-      lastPlayedTracks.delete(
-        guild.id
-      );
-    
-      navigationActions.delete(
-        guild.id
-      );
-    
-      playLocks.delete(
-        guild.id
-      );
-    
-      playbackActions.delete(
-        guild.id
-      );
-    
-      finishedQueues.delete(
-        guild.id
-      );
-    
-      playerDestroyReasons.delete(
-        guild.id
-      );
-    
-      return;
     }
+  }
+
+  clearVoiceIdleTimer(
+    guild.id
+  );
+
+  trackHistory.delete(
+    guild.id
+  );
+
+  lastPlayedTracks.delete(
+    guild.id
+  );
+
+  navigationActions.delete(
+    guild.id
+  );
+
+  playLocks.delete(
+    guild.id
+  );
+
+  playbackActions.delete(
+    guild.id
+  );
+
+  finishedQueues.delete(
+    guild.id
+  );
+
+  playerDestroyReasons.delete(
+    guild.id
+  );
+
+  return;
+}
 
     if (!player) return;
 
