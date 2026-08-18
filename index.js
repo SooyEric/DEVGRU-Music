@@ -752,13 +752,6 @@ client.on(
   async (oldState, newState) => {
     if (!client.user) return;
 
-    if (
-      oldState.id !== client.user.id &&
-      newState.id !== client.user.id
-    ) {
-      return;
-    }
-
     const guild =
       newState.guild ||
       oldState.guild;
