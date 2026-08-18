@@ -889,7 +889,7 @@ if (
           await channel.send({
             components: [
               createErrorContainer(
-                'Fui silenciado y abandoné el canal de voz.'
+                'Fui silenciado en el canal de voz.'
               )
             ],
             flags:
@@ -943,7 +943,7 @@ if (
           await channel.send({
             components: [
               createErrorContainer(
-                'Fui movido de canal de voz y abandoné la conexión.'
+                'Fui movido de canal de voz.'
               )
             ],
             flags:
@@ -1356,7 +1356,7 @@ client.on(
       return interaction.reply({
         components: [
           createErrorContainer(
-            'No tienes permiso para utilizar los controles de reproducción.'
+            'No es tu interacción.'
           )
         ],
         flags:
