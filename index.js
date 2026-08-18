@@ -782,7 +782,7 @@ if (
   !player
 ) {
   if (
-    destroyReason === 'manualStop'
+    destroyReason === 'manualStop' ||
     destroyReason === 'voiceDisconnect'
   ) {
     playerDestroyReasons.delete(
