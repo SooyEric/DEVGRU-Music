@@ -910,7 +910,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
-      startingPlayers.delete(guildId);
+      startingPlayers.delete(guild.id);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
@@ -964,7 +964,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
-      startingPlayers.delete(guildId);
+      startingPlayers.delete(guild.id);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
@@ -1017,7 +1017,7 @@ if (
       lastPlayedTracks.delete(guild.id);
       navigationActions.delete(guild.id);
       playLocks.delete(guild.id);
-      startingPlayers.delete(guildId);
+      startingPlayers.delete(guild.id);
       playbackActions.delete(guild.id);
       
       finishedQueues.delete(guild.id);
