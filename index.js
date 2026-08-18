@@ -698,6 +698,8 @@ function startVoiceIdleTimer(player) {
           return;
         }
 
+        await markNowPlayingAsStopped(player);
+
         const channel =
           client.channels.cache.get(
             player.textChannel
